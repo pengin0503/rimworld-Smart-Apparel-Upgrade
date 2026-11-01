@@ -34,6 +34,12 @@ static class Program
         Check(!SwapSafety.CooldownAllows(200,300,"a","b"),"future save timestamp fails closed");
         Check(!SwapSafety.CooldownAllows(70000,100,"old","old"),"recently removed garment cannot reverse immediately");
         Check(SwapSafety.CooldownAllows(70000,100,"new","old"),"different monotonic upgrade after cooldown");
+        var aggregate=SwapSafety.Combine(new[]{old,G(1,.6,1,.2,.2,.2,.2,.2)});
+        Check(aggregate.Quality==2&&aggregate.Condition==.8&&aggregate.Score==3&&Math.Abs(aggregate.Stats[0]-1.2)<1e-9,"all removed garments contribute to baseline");
+        Check(SwapSafety.Compare(aggregate,good,1,.7,1,.5)==SwapReason.Gain,"replacement must beat combined raw score");
+        Check(SwapSafety.Compare(G(-1,.8,2,1,1,1,1,1),good,1,.7,1,.5)==SwapReason.Invalid,"unknown quality cannot authorize automation");
+        Check(SwapSafety.Combine(new[]{old,(Garment)null})==null,"missing removed profile fails closed");
+        Check(!SwapSafety.SameFinite(double.NaN,1)&&!SwapSafety.SameFinite(1,2)&&SwapSafety.SameFinite(1,1),"equipped offsets must be finite and preserved");
         var timer=System.Diagnostics.Stopwatch.StartNew();
         for(int i=0;i<100000;i++)SwapSafety.Compare(old,good,1,.7,1,.5);
         Console.WriteLine($"PASS {count} safety assertions; 100,000 comparisons: {timer.Elapsed.TotalMilliseconds:F2} ms (model only)");

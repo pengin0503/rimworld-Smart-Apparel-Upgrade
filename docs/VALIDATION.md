@@ -60,3 +60,19 @@ Related managers or relevant Harmony patches force diagnostics-only mode; failed
 **Still blocked for v1.0:** normal populated gameplay, full-map save/load and installation/removal, actual task/feeding/wear acceptance, real outfit-manager/race/DLC interactions, 270+ MOD compatibility and actual large-map scan/TPS measurement. Earlier implementation gaps and scenario limitations remain; Issue #1 is open and no v1.0 release is created.
 
 日本語: 最新コミットで実ゲーム読み込みAは合格し、実ゲームTickと独立fixtureが12,000 Tickまで一致しました。ただしD・マップ生成は未適格化で総合判定はincompleteです。実物Scribeによる限定的なデータ往復も合格しましたが、通常プレイやマップ全体の保存・読み込み、実際の業務動作、270以上のMOD環境・実TPSの検証にはなりません。Issue #1と正式版の保留を維持します。
+
+
+## Continued implementation: replacement coverage (2026-11-01)
+
+This section supersedes the earlier same-type-only and blanket partial-scan restrictions. It does not upgrade the old private-host evidence to evidence for this revision.
+
+- Implemented cross-type/material and multiple-removal eligibility using summed removed raw scores and five protection/insulation stats, maximum removed quality/condition, exact union coverage/layers, and all removed-item locks, forced wear and apparel requirements. Cross-type/material and multiple removals additionally reject greater mass, lower maximum HP and faster wear. All automatic replacements reject custom apparel classes/non-passive components and changed or nonfinite equipped stat offsets; unknown stat directions are never guessed.
+- Actual order priority honors the same-type/material setting. Partial scans may order only individually verified candidates after fresh full revalidation, avoiding global shutdown simply because another pawn/candidate exceeded budget. Unchecked paths remain ineligible. No higher scan frequency or budgets were introduced.
+- Unknown-quality comparisons are visible. Additional nonconflicting slots show policy/body/access reasons or explain that there is no worn garment to upgrade; no automatic extra-slot filling. Multiple-removal IDs persist with a legacy single-ID fallback, and reversal checks consider every removed garment.
+- Focused red check first: build failed because the new aggregate helper was absent. After implementation: 29 model assertions pass. Single Release run: 100,000 numeric comparisons in 14.25 ms (Linux x86_64 / .NET 10.0.11; excludes game stats, paths, scanning and TPS). This is not an optimization claim.
+- Exact private 1.7.4985 rev1269 references compile successfully; real-game isolated Scribe settings/history round trip passes including both removed IDs and restored cooldown. Metadata and English/Japanese parity pass (44 used keys). Development zip contains five files, no private game assemblies.
+- Self-review: all displaced apparel, required gear, finite offsets, conservative functional-gear guard, live rechecking, bounded diagnostics and legacy-save fallback. No subagents or new broad test framework.
+
+日本語: 異種・異素材・複数脱衣を、脱衣対象すべての合計性能と被覆・要件を比較する安全判定へ追加しました。特殊装備や装備補正の変更は診断専用です。同種・同素材優先を自動指示へ反映し、個別確認済み候補が他の未確認候補で一律停止しないよう修正しました。品質不明・追加スロットも理由を表示します。29項目、限定的な実物Scribe、日英キー、配布構成の確認は合格です。
+
+Remaining release acceptance: actual completed Wear jobs (including these new replacement shapes), populated whole-map save/load and installation/removal, real manager/race/DLC/270+ MOD combinations, visible UI review and measured large-colony scan/TPS. These require a representative running game/fixture that is not available in this local stock-.NET environment. Do not equate compilation, isolated Scribe or the previous empty-map tick smoke with these checks. Issue #1 remains open; development artifacts only, no v1.0.

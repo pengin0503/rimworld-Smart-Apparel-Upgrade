@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace Pengin.SmartApparelUpgrade
 {
@@ -16,10 +17,23 @@ namespace Pengin.SmartApparelUpgrade
     public static class SwapSafety
     {
         static bool Finite(double value){return !double.IsNaN(value)&&!double.IsInfinity(value);}
+        public static bool SameFinite(double old,double next){return Finite(old)&&Finite(next)&&Math.Abs(old-next)<=1e-6;}
+        public static Garment Combine(IEnumerable<Garment> garments)
+        {
+            var result=new Garment {Quality=-1,Stats=new double[5]};bool any=false;
+            foreach(Garment garment in garments)
+            {
+                if(garment==null||garment.Quality<0||garment.Stats==null||garment.Stats.Length!=5)return null;
+                any=true;result.Quality=Math.Max(result.Quality,garment.Quality);
+                result.Condition=Math.Max(result.Condition,garment.Condition);result.Score+=garment.Score;
+                for(int i=0;i<5;i++)result.Stats[i]+=garment.Stats[i];
+            }
+            return any?result:null;
+        }
         public static SwapReason Compare(Garment old,Garment candidate,int minimumQuality,
             double minimumCondition,double minimumGainPercent,double vanillaNetGain)
         {
-            if(old==null||candidate==null||old.Stats==null||candidate.Stats==null||old.Stats.Length!=5||
+            if(old==null||candidate==null||old.Quality<0||candidate.Quality<0||old.Stats==null||candidate.Stats==null||old.Stats.Length!=5||
                 candidate.Stats.Length!=5||!Finite(old.Score)||!Finite(candidate.Score)||
                 !Finite(old.Condition)||!Finite(candidate.Condition)||!Finite(vanillaNetGain)||
                 !Finite(minimumCondition)||!Finite(minimumGainPercent))return SwapReason.Invalid;
