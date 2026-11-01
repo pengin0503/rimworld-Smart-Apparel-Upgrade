@@ -39,7 +39,7 @@
   <SAU_ReasonReach>安全に到達できる経路がない</SAU_ReasonReach>
   <SAU_ReasonCrossType>異種・異素材：特殊効果は未検証のため診断専用</SAU_ReasonCrossType>
   <SAU_ReasonManager>別の服装管理MOD・パッチが存在：診断専用</SAU_ReasonManager>
-  <SAU_ReasonBusy>手動・予約済み・有用な作業、睡眠、負傷、徴兵、精神状態、脅威などにより保留</SAU_ReasonBusy>
+  <SAU_ReasonBusy>手動・予約済み・有用な作業、睡眠、治療が必要な状態（出血・安静・慢性ではない未治療の症状・治癒中の負傷）、徴兵、精神状態、脅威などにより保留</SAU_ReasonBusy>
   <SAU_ReasonCooldown>再指示の待機時間・逆交換防止が有効</SAU_ReasonCooldown>
   <SAU_ReasonEligible>観測時の条件に適合：自動交換には明示的な有効化が必要</SAU_ReasonEligible>
   <SAU_ReasonOrdered>バニラWear Jobを指示：着替え完了は未確認</SAU_ReasonOrdered>
@@ -47,4 +47,11 @@
   <SAU_ReasonUnknownQuality>品質を取得できない衣服あり：自動指示なし</SAU_ReasonUnknownQuality>
   <SAU_ReasonExtraSlot>交換する着用中の衣服がない追加スロット：診断専用</SAU_ReasonExtraSlot>
   <SAU_EmptySlot>現在の衣服なし</SAU_EmptySlot>
+  <SAU_ReasonError>評価できなかった（例外。詳細を参照）：自動指示しない</SAU_ReasonError>
+  <SAU_FailedItems>{0}件の比較は評価できなかったため飛ばしました。</SAU_FailedItems>
+  <SAU_PatchHeader>監視対象の服装メソッドへのHarmonyパッチ（すべての所有者を許可しない限り、自動交換は止まったままです）：</SAU_PatchHeader>
+  <SAU_AllowOwner>{0} のパッチがあっても自動交換を許可する（自己責任）</SAU_AllowOwner>
+  <SAU_HideNonImprovements>改善にならない行を隠す</SAU_HideNonImprovements>
+  <SAU_AllPawns>全入植者</SAU_AllPawns>
+  <SAU_PawnFilter>入植者：{0}</SAU_PawnFilter>
 </LanguageData>

@@ -14,6 +14,9 @@ namespace Pengin.SmartApparelUpgrade
     {
         public bool AutoWear=false,PreferSameTypeAndStuff=true;
         public int MinimumQualityGain=1,MinimumConditionPercent=70,MinimumPerformanceGainPercent=1;
+        // Harmony owners the player explicitly accepted for automatic swaps. Outfit managers
+        // detected by package or name can never be accepted here.
+        public List<string> AllowedPatchOwners=new List<string>();
         public override void ExposeData()
         {
             Scribe_Values.Look(ref AutoWear,"autoWear",false);
@@ -21,9 +24,11 @@ namespace Pengin.SmartApparelUpgrade
             Scribe_Values.Look(ref MinimumQualityGain,"minimumQualityGain",1);
             Scribe_Values.Look(ref MinimumConditionPercent,"minimumConditionPercent",70);
             Scribe_Values.Look(ref MinimumPerformanceGainPercent,"minimumPerformanceGainPercent",1);
+            Scribe_Collections.Look(ref AllowedPatchOwners,"allowedPatchOwners",LookMode.Value);
+            if(AllowedPatchOwners==null)AllowedPatchOwners=new List<string>();
             base.ExposeData();
         }
-        public string Signature {get{return AutoWear+":"+PreferSameTypeAndStuff+":"+MinimumQualityGain+":"+MinimumConditionPercent+":"+MinimumPerformanceGainPercent;}}
+        public string Signature {get{return AutoWear+":"+PreferSameTypeAndStuff+":"+MinimumQualityGain+":"+MinimumConditionPercent+":"+MinimumPerformanceGainPercent+":"+string.Join(",",AllowedPatchOwners.OrderBy(x=>x));}}
     }
     public sealed class SwapStamp : IExposable
     {
@@ -47,25 +52,42 @@ namespace Pengin.SmartApparelUpgrade
         public double ScoreGain;
         public string Label {get{return Pawn.LabelShort+": "+(Displaced==null?(Worn==null?"SAU_EmptySlot".Translate().ToString():Worn.LabelShort):string.Join(" + ",Displaced.Select(a=>a.LabelShort)))+" → "+Better.LabelShort;}}
     }
+    public sealed class PatchFinding
+    {
+        public string Method;
+        public List<string> Owners;
+    }
     public sealed class ApparelScanner : MapComponent
     {
-        const int Interval=10000,MaxStock=10000,MaxComparisons=2500;
+        const int Interval=10000,MaxStock=10000,MaxComparisons=2500,MaxExtraSlotRows=150,ManagerRecheck=60000;
         static readonly StatDef[] protection={StatDefOf.ArmorRating_Sharp,StatDefOf.ArmorRating_Blunt,
             StatDefOf.ArmorRating_Heat,StatDefOf.Insulation_Cold,StatDefOf.Insulation_Heat};
+        static readonly string[] watchedMethods={"TryGiveJob","ApparelScoreRaw","ApparelScoreGain","Wear","TryDrop","PawnCanWear","CanWearTogether"};
+        // Vanilla ApparelScoreRaw reads this static, written only by TryGiveJob for whichever
+        // pawn vanilla evaluated last (possibly on another map or season).
+        static readonly FieldInfo neededWarmthField=typeof(JobGiver_OptimizeApparel).GetField("neededWarmth",BindingFlags.NonPublic|BindingFlags.Static);
         List<SwapStamp> stamps=new List<SwapStamp>();
         List<UpgradeChoice> choices=new List<UpgradeChoice>();
         public IReadOnlyList<UpgradeChoice> Choices {get{return choices;}}
         public bool Partial {get;private set;}
         public bool Failed {get;private set;}
+        public int FailedItems {get;private set;}
+        public int ScanVersion {get;private set;}
         public double ScanMilliseconds {get;private set;}
         public string AutoBlockKey {get;private set;}
         public string AutoBlockDetail {get;private set;}
+        public static List<PatchFinding> PatchFindings {get;private set;}=new List<PatchFinding>();
         public int EligibleCount {get{return choices.Count(c=>c.SafeAuto);}}
         public string SnapshotSignature {get;private set;}
-        int resumeAt=-1,pawnOffset;
+        int resumeAt=-1,pawnOffset,stockOffset;
+        // Per-pawn position in that pawn's candidate list, so a capped scan resumes where
+        // it stopped instead of re-checking the same first candidates forever.
+        readonly Dictionary<int,int> cursors=new Dictionary<int,int>();
         bool threat;
         Dictionary<Pawn,Dictionary<Apparel,Garment>> profileCache;
         string observedSettings;
+        static int managersCheckedAt=-ManagerRecheck;static string managersSignature;
+        static string managerKey,managerDetail;
         public ApparelScanner(Map map):base(map){}
         public override void ExposeData()
         {
@@ -90,69 +112,134 @@ namespace Pengin.SmartApparelUpgrade
                 }
             }
         }
-        public void Scan()
+        void SetWarmth(Pawn pawn)
         {
-            if(ApparelUpgradeMod.Settings==null)return;
+            if(neededWarmthField==null||pawn.Map==null)return;
+            neededWarmthField.SetValue(null,PawnApparelGenerator.CalculateNeededWarmth(pawn,pawn.Map.Tile,GenLocalDate.Twelfth(pawn)));
+        }
+        // CanWearTogether depends only on the two defs and the body; cache it for one scan
+        // (not longer, in case another mod patches it with state-dependent logic).
+        readonly Dictionary<long,bool> wearTogether=new Dictionary<long,bool>();
+        bool WearTogether(ThingDef a,ThingDef b,BodyDef body)
+        {
+            long key=((long)a.shortHash<<32)|((long)(ushort)b.shortHash<<16)|(ushort)body.shortHash;
+            bool value;
+            if(!wearTogether.TryGetValue(key,out value))wearTogether[key]=value=ApparelUtility.CanWearTogether(a,b,body);
+            return value;
+        }
+        bool CheaplyExcluded(Apparel worn,Apparel candidate,Pawn pawn,ApparelSettings s)
+        {
+            // Candidates that cannot pass Compare are skipped before they consume budget.
+            if(WearTogether(worn.def,candidate.def,pawn.RaceProps.body))return true;
+            if(candidate.MaxHitPoints>0&&(double)candidate.HitPoints/candidate.MaxHitPoints<Math.Max(0,Math.Min(100,s.MinimumConditionPercent))/100.0)return true;
+            QualityCategory oldQuality,newQuality;
+            return QualityUtility.TryGetQuality(worn,out oldQuality)&&QualityUtility.TryGetQuality(candidate,out newQuality)&&
+                (int)newQuality-(int)oldQuality<Math.Max(0,s.MinimumQualityGain);
+        }
+        public void Scan(){Scan(false);}
+        public void Scan(bool recheckManagers)
+        {
+            ApparelSettings settings=ApparelUpgradeMod.Settings;
+            if(settings==null)return;
             var timer=Stopwatch.StartNew();
+            object savedWarmth=neededWarmthField==null?null:neededWarmthField.GetValue(null);
+            int failedItems=0;
             try
             {
-                DetectManagers();
+                DetectManagers(recheckManagers);
+                wearTogether.Clear();
                 threat=GenHostility.AnyHostileActiveThreatToPlayer(map);
                 profileCache=new Dictionary<Pawn,Dictionary<Apparel,Garment>>();
                 var next=new List<UpgradeChoice>();bool partial=false;
                 var allStock=map.listerThings.ThingsInGroup(ThingRequestGroup.Apparel).OfType<Apparel>()
                     .Where(a=>a.Spawned&&a.Wearer==null).ToList();
-                if(allStock.Count>MaxStock)partial=true;
-                var stock=allStock.Take(MaxStock).ToList();
+                List<Apparel> stock;
+                if(allStock.Count>MaxStock)
+                {
+                    partial=true;
+                    if(stockOffset>=allStock.Count)stockOffset=0;
+                    stock=allStock.Skip(stockOffset).Concat(allStock.Take(Math.Max(0,stockOffset+MaxStock-allStock.Count))).Take(MaxStock).ToList();
+                }
+                else {stock=allStock;stockOffset=0;}
                 var byLayer=new Dictionary<ApparelLayerDef,List<Apparel>>();
                 foreach(Apparel candidate in stock)
                     foreach(ApparelLayerDef layer in candidate.def.apparel.layers)
                     {List<Apparel> items;if(!byLayer.TryGetValue(layer,out items))byLayer[layer]=items=new List<Apparel>();items.Add(candidate);}
                 var pawns=map.mapPawns.AllPawnsSpawned.Where(p=>!p.Dead&&p.IsFreeColonist&&p.apparel!=null&&p.outfits!=null).ToList();
-                int budget=MaxComparisons,paths=64;
+                int budget=MaxComparisons,extraRows=MaxExtraSlotRows,paths=64;
+                bool completedPass=true;
+                var covered=new HashSet<Pawn>();
+                if(pawnOffset>=pawns.Count)pawnOffset=0;
                 for(int i=0;i<pawns.Count;i++)
                 {
                     int index=(pawnOffset+i)%pawns.Count;Pawn pawn=pawns[index];
-                    var scores=pawn.apparel.WornApparel.Select(a=>JobGiver_OptimizeApparel.ApparelScoreRaw(pawn,a)).ToList();
-                    var seen=new HashSet<Apparel>();
-                    foreach(Apparel worn in pawn.apparel.WornApparel)
+                    covered.Add(pawn);
+                    bool stopped=false;
+                    try
                     {
-                        var relevant=worn.def.apparel.layers.Where(l=>byLayer.ContainsKey(l)).SelectMany(l=>byLayer[l]).Distinct()
-                            .OrderByDescending(a=>ApparelUpgradeMod.Settings.PreferSameTypeAndStuff&&a.def==worn.def&&a.Stuff==worn.Stuff);
-                        foreach(Apparel candidate in relevant)
+                        SetWarmth(pawn);
+                        var scores=pawn.apparel.WornApparel.Select(a=>JobGiver_OptimizeApparel.ApparelScoreRaw(pawn,a)).ToList();
+                        // Ordered (worn, candidate) pairs for this pawn; same type/material first.
+                        var pairs=new List<KeyValuePair<Apparel,Apparel>>();
+                        var paired=new HashSet<Apparel>();
+                        foreach(Apparel worn in pawn.apparel.WornApparel)
                         {
-                            if(--budget<0){partial=true;break;}
-                            QualityCategory oldQuality,newQuality;
-                            if(QualityUtility.TryGetQuality(worn,out oldQuality)&&QualityUtility.TryGetQuality(candidate,out newQuality)&&newQuality<oldQuality)continue;
-                            if(ApparelUtility.CanWearTogether(worn.def,candidate.def,pawn.RaceProps.body))continue;
-                            if(!seen.Add(candidate))continue;
-                            next.Add(Evaluate(pawn,worn,candidate,scores,ref paths));
+                            var relevant=worn.def.apparel.layers.Where(l=>byLayer.ContainsKey(l)).SelectMany(l=>byLayer[l]).Distinct()
+                                .Where(a=>!CheaplyExcluded(worn,a,pawn,settings))
+                                .OrderByDescending(a=>settings.PreferSameTypeAndStuff&&a.def==worn.def&&a.Stuff==worn.Stuff);
+                            foreach(Apparel candidate in relevant)if(paired.Add(candidate))pairs.Add(new KeyValuePair<Apparel,Apparel>(worn,candidate));
                         }
-                        if(budget<0)break;
+                        int cursor;cursors.TryGetValue(pawn.thingIDNumber,out cursor);
+                        if(cursor>=pairs.Count)cursor=0;
+                        for(int k=cursor;k<pairs.Count;k++)
+                        {
+                            if(--budget<0){partial=true;stopped=true;cursors[pawn.thingIDNumber]=k;break;}
+                            var pair=pairs[k];
+                            try{next.Add(Evaluate(pawn,pair.Key,pair.Value,scores,ref paths));}
+                            catch(Exception e){failedItems++;next.Add(new UpgradeChoice{Pawn=pawn,Worn=pair.Key,Better=pair.Value,Reason="SAU_ReasonError",Detail=e.GetType().Name});}
+                        }
+                        if(!stopped)cursors[pawn.thingIDNumber]=0;
+                        // Free slots: diagnostics only, from a separate small budget, and only for
+                        // apparel the pawn's policy allows (other entries are not candidates).
+                        if(!stopped&&extraRows>0&&pawn.outfits.CurrentApparelPolicy!=null)
+                            foreach(Apparel candidate in stock)
+                            {
+                                if(extraRows<=0)break;
+                                if(paired.Contains(candidate)||!pawn.outfits.CurrentApparelPolicy.filter.Allows(candidate))continue;
+                                if(pawn.apparel.WornApparel.Any(a=>!ApparelUtility.CanWearTogether(a.def,candidate.def,pawn.RaceProps.body)))continue;
+                                extraRows--;
+                                string reason="SAU_ReasonExtraSlot";
+                                if(!candidate.PawnCanWear(pawn,false)||!ApparelUtility.HasPartsToWear(pawn,candidate.def))reason="SAU_ReasonBody";
+                                else if(candidate.IsForbidden(pawn))reason="SAU_ReasonForbidden";
+                                else if(!pawn.CanReserve(candidate))reason="SAU_ReasonReserved";
+                                else if(paths--<=0)reason="SAU_ReasonUnverified";
+                                else if(!pawn.CanReach(candidate,PathEndMode.Touch,Danger.None))reason="SAU_ReasonReach";
+                                next.Add(new UpgradeChoice{Pawn=pawn,Better=candidate,Reason=reason});
+                            }
                     }
-                    if(budget>=0)
-                        foreach(Apparel candidate in stock.Where(a=>!seen.Contains(a)))
-                        {
-                            if(--budget<0){partial=true;break;}
-                            if(pawn.apparel.WornApparel.Any(a=>!ApparelUtility.CanWearTogether(a.def,candidate.def,pawn.RaceProps.body)))continue;
-                            string reason="SAU_ReasonExtraSlot";
-                            if(pawn.outfits.CurrentApparelPolicy==null||!pawn.outfits.CurrentApparelPolicy.filter.Allows(candidate))reason="SAU_ReasonPolicy";
-                            else if(!candidate.PawnCanWear(pawn,false)||!ApparelUtility.HasPartsToWear(pawn,candidate.def))reason="SAU_ReasonBody";
-                            else if(candidate.IsForbidden(pawn))reason="SAU_ReasonForbidden";
-                            else if(!pawn.CanReserve(candidate))reason="SAU_ReasonReserved";
-                            else if(paths--<=0)reason="SAU_ReasonUnverified";
-                            else if(!pawn.CanReach(candidate,PathEndMode.Touch,Danger.None))reason="SAU_ReasonReach";
-                            next.Add(new UpgradeChoice{Pawn=pawn,Better=candidate,Reason=reason});
-                        }
-                    if(budget<0){pawnOffset=(index+1)%pawns.Count;break;}
+                    catch(Exception e)
+                    {
+                        failedItems++;
+                        if(!Failed)Log.Warning("Smart Apparel Upgrade skipped "+pawn.LabelShort+": "+e.GetType().Name);
+                    }
+                    if(stopped){pawnOffset=index;completedPass=false;break;}
                 }
-                choices=next;Partial=partial||paths<0;Failed=false;
-                SnapshotSignature=ApparelUpgradeMod.Settings.Signature;
+                if(completedPass){pawnOffset=0;if(allStock.Count>MaxStock)stockOffset+=MaxStock;}
+                // Rows of pawns this scan did not reach are kept for display only; automatic
+                // orders always re-evaluate a row from scratch.
+                foreach(UpgradeChoice old in choices)
+                    if(old.Pawn!=null&&!covered.Contains(old.Pawn)&&pawns.Contains(old.Pawn))next.Add(old);
+                choices=next;Partial=partial||paths<0;Failed=false;FailedItems=failedItems;ScanVersion++;
+                SnapshotSignature=settings.Signature;
                 int now=Find.TickManager.TicksGame;
                 stamps.RemoveAll(s=>s==null||string.IsNullOrEmpty(s.PawnId)||((long)now-s.LastIssued)>600000);
             }
             catch(Exception e){if(!Failed)Log.Warning("Smart Apparel Upgrade scan incomplete: "+e.GetType().Name);Failed=true;}
-            finally{ScanMilliseconds=timer.Elapsed.TotalMilliseconds;}
+            finally
+            {
+                if(neededWarmthField!=null&&savedWarmth!=null)neededWarmthField.SetValue(null,savedWarmth);
+                ScanMilliseconds=timer.Elapsed.TotalMilliseconds;
+            }
         }
         Garment Profile(Pawn pawn,Apparel item)
         {
@@ -238,104 +325,113 @@ namespace Pengin.SmartApparelUpgrade
             string[] passive={"CompQuality","CompColorable","CompForbiddable","CompStyleable"};
             return item.AllComps.All(c=>c.GetType().Assembly==typeof(Apparel).Assembly&&passive.Contains(c.GetType().Name));
         }
+        // Defer for anything that needs care now: bleeding, medical rest, a non-chronic
+        // condition awaiting treatment or a wound still healing. Chronic conditions (asthma,
+        // ...) and permanent scars are lasting states, not reasons to wait forever.
+        static bool NeedsCare(Pawn p)
+        {
+            if(p.health==null||p.health.hediffSet==null)return true;
+            HediffSet set=p.health.hediffSet;
+            // Vanilla ShouldSeekMedicalRest also fires for any tendable hediff, including
+            // chronic ones; use its other parts and exclude chronic conditions explicitly.
+            if(set.BleedRateTotal>0.0001f||set.InLabor()||set.HasTendedAndHealingInjury()||set.HasImmunizableNotImmuneHediff()||
+                HealthAIUtility.ShouldHaveSurgeryDoneNow(p))return true;
+            return set.hediffs.Any(h=>(h.TendableNow()&&!h.def.chronic)||(h is Hediff_Injury&&!h.IsPermanent()));
+        }
         IdleState Activity(Pawn p)
         {
             // Idle colonists usually run the wander filler jobs; those carry no work to protect.
             return new IdleState {Idle=p.CurJob==null||p.CurJobDef==JobDefOf.Wait||p.CurJobDef==JobDefOf.Wait_MaintainPosture||
                 p.CurJobDef==JobDefOf.Wait_Wander||p.CurJobDef==JobDefOf.GotoWander,
                 Awake=p.Awake(),PlayerForced=p.CurJob!=null&&(p.CurJob.playerForced||p.CurJob.playerInterruptedForced),
-                Queued=p.jobs==null||p.jobs.jobQueue.Count>0,Injured=p.health==null||p.health.HasHediffsNeedingTend(false)||p.health.hediffSet.hediffs.Any(h=>h is Hediff_Injury),
+                Queued=p.jobs==null||p.jobs.jobQueue.Count>0,
+                Injured=NeedsCare(p),
                 Threat=threat,Drafted=p.Drafted,Mental=p.InMentalState,Downed=p.Downed,Dead=p.Dead};
         }
-        void DetectManagers()
+        void DetectManagers(bool force)
         {
-            AutoBlockKey=null;AutoBlockDetail=null;
+            ApparelSettings settings=ApparelUpgradeMod.Settings;
+            int now=Find.TickManager.TicksGame;
+            // Packages and Harmony patches do not change during play; inspect them rarely.
+            if(force||now-managersCheckedAt>=ManagerRecheck||now<managersCheckedAt||managersSignature!=settings.Signature)
+            {
+                managersCheckedAt=now;managersSignature=settings.Signature;
+                Inspect(settings);
+            }
+            AutoBlockKey=managerKey;AutoBlockDetail=managerDetail;
+        }
+        static void Inspect(ApparelSettings settings)
+        {
+            managerKey=null;managerDetail=null;
+            var findings=new List<PatchFinding>();
             foreach(ModContentPack pack in LoadedModManager.RunningModsListForReading)
                 if(Compatibility.IsManager(pack.PackageId,pack.Name))
-                {AutoBlockKey="SAU_ManagerDetected";AutoBlockDetail=pack.Name;return;}
+                {managerKey="SAU_ManagerDetected";managerDetail=pack.Name;PatchFindings=findings;return;}
             try
             {
                 Type harmony=AppDomain.CurrentDomain.GetAssemblies().Select(a=>a.GetType("HarmonyLib.Harmony",false)).FirstOrDefault(t=>t!=null);
-                if(harmony==null)return;
+                if(harmony==null){PatchFindings=findings;return;}
                 MethodInfo get=harmony.GetMethod("GetPatchInfo",BindingFlags.Public|BindingFlags.Static,null,new[]{typeof(MethodBase)},null);
-                if(get==null){AutoBlockKey="SAU_InspectionFailed";return;}
+                if(get==null){managerKey="SAU_InspectionFailed";PatchFindings=findings;return;}
                 foreach(Type t in new[]{typeof(JobGiver_OptimizeApparel),typeof(Pawn_ApparelTracker),typeof(Apparel),typeof(ApparelUtility)})
                     foreach(MethodInfo method in t.GetMethods(BindingFlags.Public|BindingFlags.NonPublic|BindingFlags.Instance|BindingFlags.Static))
-                        if(new[]{"TryGiveJob","ApparelScoreRaw","ApparelScoreGain","Wear","TryDrop","PawnCanWear","CanWearTogether"}.Contains(method.Name)&&get.Invoke(null,new object[]{method})!=null)
-                        {AutoBlockKey="SAU_Patched";AutoBlockDetail=t.Name+"."+method.Name;return;}
+                    {
+                        if(!watchedMethods.Contains(method.Name))continue;
+                        object info=get.Invoke(null,new object[]{method});
+                        if(info==null)continue;
+                        var owners=(info.GetType().GetProperty("Owners")?.GetValue(info) as IEnumerable<string>)?.Distinct().ToList();
+                        // An unreadable owner list cannot be accepted by the player.
+                        if(owners==null||owners.Count==0)owners=new List<string>{"?"};
+                        findings.Add(new PatchFinding{Method=t.Name+"."+method.Name,Owners=owners});
+                    }
             }
-            catch{AutoBlockKey="SAU_InspectionFailed";}
+            catch{managerKey="SAU_InspectionFailed";PatchFindings=findings;return;}
+            PatchFindings=findings;
+            var blocking=findings.Where(f=>f.Owners.Any(o=>o=="?"||!settings.AllowedPatchOwners.Contains(o))).ToList();
+            if(blocking.Count>0)
+            {
+                managerKey="SAU_Patched";
+                managerDetail=string.Join("; ",blocking.Select(f=>f.Method+" ("+string.Join(", ",f.Owners)+")"));
+            }
         }
         void OrderIdleUpgrades()
         {
-            DetectManagers();if(!string.IsNullOrEmpty(AutoBlockKey))return;
+            DetectManagers(false);if(!string.IsNullOrEmpty(AutoBlockKey))return;
             threat=GenHostility.AnyHostileActiveThreatToPlayer(map);profileCache=null;
-            var issued=new HashSet<Pawn>();var claimed=new HashSet<Apparel>();int now=Find.TickManager.TicksGame;
-            foreach(UpgradeChoice choice in choices.Where(c=>c.SafeAuto).OrderByDescending(c=>ApparelUpgradeMod.Settings.PreferSameTypeAndStuff&&c.Displaced.Count==1&&c.Worn.def==c.Better.def&&c.Worn.Stuff==c.Better.Stuff).ThenByDescending(c=>c.ScoreGain))
+            object savedWarmth=neededWarmthField==null?null:neededWarmthField.GetValue(null);
+            try
             {
-                Pawn pawn=choice.Pawn;
-                if(issued.Contains(pawn)||claimed.Contains(choice.Better)||!SwapSafety.CanAct(Activity(pawn)))continue;
-                var scores=pawn.apparel.WornApparel.Select(a=>JobGiver_OptimizeApparel.ApparelScoreRaw(pawn,a)).ToList();int paths=1;
-                UpgradeChoice fresh=Evaluate(pawn,choice.Worn,choice.Better,scores,ref paths);
-                if(!fresh.SafeAuto)continue;
-                // Only vanilla Wear performs removal/equip. No direct tracker mutation.
-                // Not TryTakeOrderedJob: it sets Job.playerForced, and JobDriver_Wear then marks the
-                // new apparel as forced (OutfitForcedHandler.SetForced), silently changing the
-                // player's outfit state and blocking later vanilla optimization.
-                Job job=JobMaker.MakeJob(JobDefOf.Wear,choice.Better);
-                job.playerForced=false;
-                pawn.jobs.StartJob(job,JobCondition.InterruptForced,null,false,true,null,JobTag.Misc);
-                if(pawn.CurJob==job)
+                var issued=new HashSet<Pawn>();var claimed=new HashSet<Apparel>();int now=Find.TickManager.TicksGame;
+                foreach(UpgradeChoice choice in choices.Where(c=>c.SafeAuto).OrderByDescending(c=>ApparelUpgradeMod.Settings.PreferSameTypeAndStuff&&c.Displaced.Count==1&&c.Worn.def==c.Better.def&&c.Worn.Stuff==c.Better.Stuff).ThenByDescending(c=>c.ScoreGain).ToList())
                 {
-                    issued.Add(pawn);claimed.Add(choice.Better);
-                    stamps.RemoveAll(s=>s.PawnId==pawn.ThingID);
-                    stamps.Add(new SwapStamp{PawnId=pawn.ThingID,TargetId=choice.Better.ThingID,RemovedId=choice.Worn.ThingID,RemovedIds=fresh.Displaced.Select(a=>a.ThingID).ToList(),LastIssued=now});
-                    choice.Reason="SAU_ReasonOrdered";choice.SafeAuto=false;
+                    Pawn pawn=choice.Pawn;
+                    if(issued.Contains(pawn)||claimed.Contains(choice.Better)||!SwapSafety.CanAct(Activity(pawn)))continue;
+                    UpgradeChoice fresh;
+                    try
+                    {
+                        SetWarmth(pawn);
+                        var scores=pawn.apparel.WornApparel.Select(a=>JobGiver_OptimizeApparel.ApparelScoreRaw(pawn,a)).ToList();int paths=1;
+                        fresh=Evaluate(pawn,choice.Worn,choice.Better,scores,ref paths);
+                    }
+                    catch(Exception){continue;} // A failed recheck never orders.
+                    if(!fresh.SafeAuto)continue;
+                    // Only vanilla Wear performs removal/equip. No direct tracker mutation.
+                    // Not TryTakeOrderedJob: it sets Job.playerForced, and JobDriver_Wear then marks the
+                    // new apparel as forced (OutfitForcedHandler.SetForced), silently changing the
+                    // player's outfit state and blocking later vanilla optimization.
+                    Job job=JobMaker.MakeJob(JobDefOf.Wear,choice.Better);
+                    job.playerForced=false;
+                    pawn.jobs.StartJob(job,JobCondition.InterruptForced,null,false,true,null,JobTag.Misc);
+                    if(pawn.CurJob==job)
+                    {
+                        issued.Add(pawn);claimed.Add(choice.Better);
+                        stamps.RemoveAll(s=>s.PawnId==pawn.ThingID);
+                        stamps.Add(new SwapStamp{PawnId=pawn.ThingID,TargetId=choice.Better.ThingID,RemovedId=choice.Worn.ThingID,RemovedIds=fresh.Displaced.Select(a=>a.ThingID).ToList(),LastIssued=now});
+                        choice.Reason="SAU_ReasonOrdered";choice.SafeAuto=false;
+                    }
                 }
             }
-        }
-    }
-    public sealed class ApparelUpgradeMod : Mod
-    {
-        public static ApparelSettings Settings;
-        Vector2 scroll;float controlsHeight=500;
-        public ApparelUpgradeMod(ModContentPack pack):base(pack){Settings=GetSettings<ApparelSettings>();}
-        public override string SettingsCategory(){return "Smart Apparel Upgrade";}
-        public override void DoSettingsWindowContents(Rect rect)
-        {
-            ApparelScanner scanner=Find.CurrentMap==null?null:Find.CurrentMap.GetComponent<ApparelScanner>();
-            int count=scanner==null?0:scanner.Choices.Count;const float rowHeight=136;
-            var content=new Rect(0,0,Math.Max(100,rect.width-20),Math.Max(rect.height,controlsHeight+count*rowHeight));
-            Widgets.BeginScrollView(rect,ref scroll,content);
-            var list=new Listing_Standard();list.Begin(new Rect(0,0,content.width,10000));
-            list.Label("SAU_Description".Translate());
-            list.CheckboxLabeled("SAU_Auto".Translate(),ref Settings.AutoWear);
-            list.CheckboxLabeled("SAU_PreferSame".Translate(),ref Settings.PreferSameTypeAndStuff);
-            list.Label("SAU_MinimumQuality".Translate(Settings.MinimumQualityGain));Settings.MinimumQualityGain=(int)list.Slider(Settings.MinimumQualityGain,0,5);
-            list.Label("SAU_MinimumHP".Translate(Settings.MinimumConditionPercent));Settings.MinimumConditionPercent=(int)list.Slider(Settings.MinimumConditionPercent,1,100);
-            list.Label("SAU_MinimumPerformance".Translate(Settings.MinimumPerformanceGainPercent));Settings.MinimumPerformanceGainPercent=(int)list.Slider(Settings.MinimumPerformanceGainPercent,0,50);
-            if(scanner!=null)
-            {
-                if(list.ButtonText("SAU_Scan".Translate()))scanner.Scan();
-                list.Label("SAU_Count".Translate(scanner.Choices.Count,scanner.EligibleCount));
-                if(scanner.Partial)list.Label("SAU_Partial".Translate());
-                if(scanner.Failed)list.Label("SAU_Failed".Translate());
-                if(scanner.SnapshotSignature!=Settings.Signature)list.Label("SAU_Stale".Translate());
-                if(!string.IsNullOrEmpty(scanner.AutoBlockKey))list.Label(scanner.AutoBlockKey.Translate()+" "+scanner.AutoBlockDetail);
-                list.Label("SAU_ScanTime".Translate(scanner.ScanMilliseconds.ToString("0.00")));
-            }
-            controlsHeight=list.CurHeight+10;list.End();
-            if(scanner!=null)
-                for(int i=0;i<scanner.Choices.Count;i++)
-                {
-                    float y=controlsHeight+i*rowHeight;
-                    if(y+rowHeight<scroll.y||y>scroll.y+rect.height)continue;
-                    UpgradeChoice c=scanner.Choices[i];
-                    Widgets.Label(new Rect(0,y,content.width-80,rowHeight-4),c.Label+"\n"+c.Reason.Translate()+"\n"+c.Detail);
-                    if(c.Better!=null&&c.Better.Spawned&&Widgets.ButtonText(new Rect(content.width-76,y+4,73,28),"SAU_Jump".Translate()))
-                        CameraJumper.TryJump(c.Better);
-                }
-            Widgets.EndScrollView();
+            finally{if(neededWarmthField!=null&&savedWarmth!=null)neededWarmthField.SetValue(null,savedWarmth);}
         }
     }
 }

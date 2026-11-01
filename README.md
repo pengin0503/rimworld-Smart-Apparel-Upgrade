@@ -21,7 +21,7 @@ Smart Apparel Upgrade は RimWorld 1.7 用のMODです。入植者ごとに、�
 - 強制着用・ロック、死体が着ていた服
 - 予約、禁止、到達性
 
-そのほか、品質が分からない衣服や、交換対象のない追加スロットも理由付きで表示します。追加スロットは診断のみで、自動では着せません。候補の位置へ移動できます。
+そのほか、品質が分からない衣服や、交換対象のない追加スロット（服装ポリシーで許可されたもの）も理由付きで表示します。追加スロットは診断のみで、自動では着せません。一覧は、自動交換の対象 → 対処できる理由 → その他の順に並び、入植者で絞り込めます。改善にならない行は既定で隠します。候補の位置へ移動できます。
 
 ### 自動交換（任意・初期OFF）
 
@@ -33,19 +33,19 @@ Smart Apparel Upgrade は RimWorld 1.7 用のMODです。入植者ごとに、�
 - 特殊なコンポーネント・独自クラス・装備補正値の変化がない、通常の装備に限る。効果が分からない装備は対象外です。
 - 入植者が暇（待機・散歩中）で起きており、次のどれにも当てはまらない。
   - 手動指示・予約済みのJob
-  - 徴兵、負傷、精神状態、ダウン
+  - 徴兵、治療が必要な状態（出血・安静が必要・慢性ではない未治療の症状・治癒中の負傷。古い傷跡や喘息などの慢性疾患は含まない）、精神状態、ダウン
   - 戦闘の脅威
 - 同じ入植者への再指示は1日空ける。脱いだ服を着直す指示は3日空ける（履歴はセーブに保存）。
 
 その他の動作:
 
 - 同種・同素材の候補を優先します（設定で変更できます）。
-- Jobの発行直前に、装備状態と全条件をもう一度確認します。
+- Jobの発行直前に、装備状態と全条件をもう一度確認します。バニラの服装スコアは、入植者ごとの必要保温度で計算します。
 - 自動で着た服は「強制着用」になりません。以後もバニラの服の最適化の対象です。
 - ロード直後と設定変更後は、一定の猶予期間を置いてから自動交換を始めます。
 - 次の場合は自動交換を止め、診断専用になります。
   - Outfit Manager（`LordKuper.OutfitManager`）や、名前に wardrobe / outfit manager を含む服装管理MODを検出したとき
-  - 服装関連メソッドへのHarmonyパッチを検出したとき
+  - 服装関連メソッドへのHarmonyパッチを検出したとき（設定画面に、パッチを当てているメソッドと所有者をすべて表示します。所有者ごとに、自己責任で自動交換を許可することもできます。服装管理MODの検出は解除できません）
   - パッチの検査に失敗したとき
 
 ### 使い方
@@ -58,14 +58,15 @@ Smart Apparel Upgrade は RimWorld 1.7 用のMODです。入植者ごとに、�
 
 ### 制限事項と未検証範囲
 
-- **通常のゲームプレイでの動作確認（実際の着替え完了を含む）は行っていません。** 公開前に確認したのは次の範囲です。
+- **通常のゲームプレイでの長時間の動作確認は行っていません。** 確認した範囲は `docs/VALIDATION.md` を参照してください。公開前に確認したのは次の範囲です。
   - 実物のゲームDLLを参照したビルド
   - バニラの Wear Job と強制着用処理のIL確認
+  - 実ゲームの有限Tick実行で、自動交換による着替えが完了し、強制着用にならないこと（v1.0.1）
   - 静的な参照照合
   - モデル単体の確認
   - 限定的なセーブ形式の確認
 - 服装管理MODの検出は名前と関連パッチに基づく保守的なもので、互換性を保証しません。Colony Wardrobe の PackageId は確認できていません。
-- 1回の検査には上限（在庫10,000着、比較2,500件）があり、超えた場合は「不完全」と表示します。確認できなかった候補で自動交換することはありません。
+- 1回の検査には上限（在庫10,000着、比較2,500件、追加スロットの診断150件）があり、超えた場合は「不完全」と表示します。改善にならない候補は上限を使う前に除き、続きは次回以降の検査で順に調べます。確認できなかった候補で自動交換することはありません。評価できなかった候補は理由付きで表示し、自動交換の対象から外します。
 - 大規模コロニーでの検査時間・TPSへの影響と、多数のMODとの互換性は計測・検証していません。
 
 ## English
@@ -87,7 +88,7 @@ For each candidate it checks the following and shows the reason:
 - forced or locked apparel, and apparel worn by a corpse
 - reservations, forbidden state and reachability
 
-Apparel of unknown quality and additional free slots with no garment to replace are also shown with a reason. Free slots are diagnostic only and are never filled automatically. You can jump to a candidate's location.
+Apparel of unknown quality and additional free slots with no garment to replace (policy-allowed items) are also shown with a reason. Free slots are diagnostic only and are never filled automatically. The list sorts automatic candidates first, then reasons you can act on, then the rest, and can be filtered by colonist. Rows that are not improvements are hidden by default. You can jump to a candidate's location.
 
 ### Automatic replacement (optional, OFF by default)
 
@@ -99,19 +100,19 @@ Only when enabled, a vanilla Wear job is issued for candidates that meet every c
 - Only ordinary apparel is eligible: no special components, custom classes or changed equipped stat offsets. Gear with unknown effects is excluded.
 - The colonist is idle (waiting or wandering) and awake, and none of the following applies:
   - a manual or queued job
-  - drafted, injured, in a mental state or downed
+  - drafted, a condition needing care (bleeding, medical rest, an untreated non-chronic condition or a still-healing wound; old scars and chronic conditions such as asthma do not count), in a mental state or downed
   - a combat threat
 - At least one day passes between orders for the same colonist, and three days before a removed garment can be re-targeted. The history is stored in the save.
 
 Other behavior:
 
 - Same-type/material candidates are preferred (configurable).
-- Apparel state and every condition are rechecked right before the job is issued.
+- Apparel state and every condition are rechecked right before the job is issued. Vanilla apparel scores are computed with each colonist's own warmth needs.
 - Automatically worn apparel is **not** marked as forced, so vanilla outfit optimization still applies to it later.
 - Automation waits a grace interval after loading and after settings changes.
 - Automation stops and the mod becomes diagnostics-only when:
   - Outfit Manager (`LordKuper.OutfitManager`) or an outfit-manager mod whose name contains wardrobe / outfit manager is detected
-  - a Harmony patch on relevant apparel methods is detected
+  - a Harmony patch on relevant apparel methods is detected (the settings page lists every patched method and owner; you can allow automatic swaps per owner at your own risk; outfit-manager detection cannot be overridden)
   - patch inspection fails
 
 ### Usage
@@ -124,12 +125,13 @@ The mod can be added to or removed from an existing save. Replacement history is
 
 ### Limitations and unverified scope
 
-- **Not yet tested in normal gameplay, including actual completed swaps.** Before release, only the following were checked:
+- **Not yet tested in long normal gameplay.** See `docs/VALIDATION.md` for exactly what was checked. Before release, the following were checked:
   - a build against the real game DLLs
   - an IL review of vanilla Wear and forced-apparel handling
+  - a bounded real-game run in which an automatic swap completed without marking the apparel forced (v1.0.1)
   - static reference matching
   - model unit checks
   - limited save-format checks
 - Outfit-manager detection is a conservative name and patch check, not a compatibility guarantee. The Colony Wardrobe PackageId has not been confirmed.
-- Each scan has caps (10,000 stored garments, 2,500 comparisons). When they are reached the result is labeled partial. Candidates that were not checked are never used for automatic replacement.
+- Each scan has caps (10,000 stored garments, 2,500 comparisons, 150 extra-slot rows). When they are reached the result is labeled partial. Candidates that cannot be improvements are dropped before using the budget, and later scans continue where the previous one stopped. Candidates that were not checked are never used for automatic replacement. Candidates that cannot be evaluated are shown with a reason and excluded from automation.
 - Scan time and TPS impact in large colonies, and compatibility with large mod lists, have not been measured or verified.
