@@ -76,7 +76,15 @@ namespace Pengin.SmartApparelUpgrade
             {resumeAt=now+Interval;observedSettings=settings.Signature;}
             if(now%Interval!=map.uniqueID%Interval)return;
             Scan();
-            if(settings.AutoWear&&!Partial&&!Failed&&now>=resumeAt)OrderIdleUpgrades();
+            if(settings.AutoWear&&!Partial&&!Failed&&now>=resumeAt)
+            {
+                try{OrderIdleUpgrades();}
+                catch(Exception e)
+                {
+                    Failed=true;
+                    Log.Warning("Smart Apparel Upgrade order deferred after failure: "+e.GetType().Name);
+                }
+            }
         }
         public void Scan()
         {
