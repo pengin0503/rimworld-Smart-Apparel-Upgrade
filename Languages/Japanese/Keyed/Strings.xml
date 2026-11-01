@@ -1,10 +1,46 @@
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version='1.0' encoding='utf-8'?>
 <LanguageData>
-  <SAU_Description>同種・同素材で高品質の衣服を検索します。自動着替えは初期設定で無効です。</SAU_Description>
+  <SAU_Description>入植者・衣服別の交換診断です。自動交換は初期OFFで、同種・同素材の1着置換だけを対象にします。スコアや安全判定はゲーム内互換性の証明ではありません。</SAU_Description>
   <SAU_Auto>待機中の入植者に自動着替えを指示（任意）</SAU_Auto>
   <SAU_MinimumQuality>最低品質差: {0}段階</SAU_MinimumQuality>
   <SAU_MinimumHP>候補の最低耐久度: {0}%</SAU_MinimumHP>
   <SAU_Scan>候補を検索</SAU_Scan>
-  <SAU_Count>交換候補: {0}件</SAU_Count>
+  <SAU_Count>比較：{0}件／現在の自動交換候補：{1}件</SAU_Count>
   <SAU_Excluded>除外比較: ポリシー{0} / 耐久{1} / 到達{2} / 品質{3}</SAU_Excluded>
+  <SAU_PreferSame>同種・同素材の診断候補を優先</SAU_PreferSame>
+  <SAU_MinimumPerformance>最低スコア改善率（％）：{0}</SAU_MinimumPerformance>
+  <SAU_Profile>品質 {0}→{1}（0〜6）；耐久 {2}%→{3}%；スコア {4}→{5}</SAU_Profile>
+  <SAU_Stats>鋭利／打撃／熱防御・寒冷／高温断熱：{0} → {1}</SAU_Stats>
+  <SAU_Jump>位置</SAU_Jump>
+  <SAU_Partial>不完全：備蓄・比較・経路確認の上限に到達。この結果からは自動指示しません。</SAU_Partial>
+  <SAU_Failed>走査失敗：以前の結果は古い状態です。自動指示は行いません。</SAU_Failed>
+  <SAU_Stale>設定変更または結果なし。再走査してください。ロード・設定変更後は自動動作に猶予期間があります。</SAU_Stale>
+  <SAU_ScanTime>走査時間：{0} ms（TPSへの影響ではありません）</SAU_ScanTime>
+  <SAU_ManagerDetected>診断専用：服装・ワードローブ管理MODを検出。</SAU_ManagerDetected>
+  <SAU_Patched>診断専用：服装管理メソッドへのHarmonyパッチを検出。</SAU_Patched>
+  <SAU_InspectionFailed>診断専用：パッチ検査で安全性を確認できません。</SAU_InspectionFailed>
+  <SAU_ReasonUnknown>不明・対象状態変化：自動指示なし</SAU_ReasonUnknown>
+  <SAU_ReasonLocked>ロックされた衣服を外す可能性</SAU_ReasonLocked>
+  <SAU_ReasonForced>強制着用・自動脱衣不可の服を外す可能性</SAU_ReasonForced>
+  <SAU_ReasonPolicy>現在の服装ポリシーで候補が対象外</SAU_ReasonPolicy>
+  <SAU_ReasonTainted>死体着用の服は保守的に対象外</SAU_ReasonTainted>
+  <SAU_ReasonBody>入植者・身体・種族・DLCの着用可否チェックで対象外</SAU_ReasonBody>
+  <SAU_ReasonRequirement>服装要件に不適合、または必要な衣服を外す可能性</SAU_ReasonRequirement>
+  <SAU_ReasonMultiple>比較対象の1着以外も外す可能性：診断専用</SAU_ReasonMultiple>
+  <SAU_ReasonCoverage>被覆部位・レイヤーが異なる：診断専用</SAU_ReasonCoverage>
+  <SAU_ReasonInvalid>スコア・性能値が不正：改善を確認不能</SAU_ReasonInvalid>
+  <SAU_ReasonQuality>品質差が設定した下限未満</SAU_ReasonQuality>
+  <SAU_ReasonCondition>耐久度が下限未満、または現在の服より悪化</SAU_ReasonCondition>
+  <SAU_ReasonRegression>防御・断熱の少なくとも1項目が悪化</SAU_ReasonRegression>
+  <SAU_ReasonGain>スコア改善不足、またはバニラの実効スコア差が正でない</SAU_ReasonGain>
+  <SAU_ReasonForbidden>候補が禁止・許可アクセス外</SAU_ReasonForbidden>
+  <SAU_ReasonReserved>候補を予約できない（予約・その他の適格性制約）</SAU_ReasonReserved>
+  <SAU_ReasonUnverified>上限により到達性は未確認：自動指示なし</SAU_ReasonUnverified>
+  <SAU_ReasonReach>安全に到達できる経路がない</SAU_ReasonReach>
+  <SAU_ReasonCrossType>異種・異素材：特殊効果は未検証のため診断専用</SAU_ReasonCrossType>
+  <SAU_ReasonManager>別の服装管理MOD・パッチが存在：診断専用</SAU_ReasonManager>
+  <SAU_ReasonBusy>手動・予約済み・有用な作業、睡眠、負傷、徴兵、精神状態、脅威などにより保留</SAU_ReasonBusy>
+  <SAU_ReasonCooldown>再指示の待機時間・逆交換防止が有効</SAU_ReasonCooldown>
+  <SAU_ReasonEligible>観測時の条件に適合：自動交換には明示的な有効化が必要</SAU_ReasonEligible>
+  <SAU_ReasonOrdered>バニラWear Jobを指示：着替え完了は未確認</SAU_ReasonOrdered>
 </LanguageData>

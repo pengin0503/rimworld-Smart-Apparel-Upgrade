@@ -1,10 +1,46 @@
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version='1.0' encoding='utf-8'?>
 <LanguageData>
-  <SAU_Description>Find higher-quality clothes of identical type and material. Automatic wear is OFF by default.</SAU_Description>
+  <SAU_Description>Individual replacement diagnostics. Auto mode defaults OFF and only replaces one same-type/material garment. Scores and safety checks do not prove gameplay compatibility.</SAU_Description>
   <SAU_Auto>Automatically order idle pawns to upgrade (opt-in)</SAU_Auto>
   <SAU_MinimumQuality>Minimum quality gain: {0}</SAU_MinimumQuality>
   <SAU_MinimumHP>Minimum condition: {0}%</SAU_MinimumHP>
   <SAU_Scan>Scan for upgrades</SAU_Scan>
-  <SAU_Count>Recommendations: {0}</SAU_Count>
+  <SAU_Count>Comparisons: {0} / currently eligible for auto: {1}</SAU_Count>
   <SAU_Excluded>Excluded comparisons - policy {0}, durability {1}, access {2}, quality {3}</SAU_Excluded>
+  <SAU_PreferSame>Prioritize same type and material in diagnostics</SAU_PreferSame>
+  <SAU_MinimumPerformance>Minimum raw-score improvement (%): {0}</SAU_MinimumPerformance>
+  <SAU_Profile>Quality {0}→{1} (0–6); condition {2}%→{3}%; score {4}→{5}</SAU_Profile>
+  <SAU_Stats>Sharp/blunt/heat armor, cold/heat insulation: {0} → {1}</SAU_Stats>
+  <SAU_Jump>Locate</SAU_Jump>
+  <SAU_Partial>Partial: stock/comparison/path budget reached. Auto orders are disabled for this snapshot.</SAU_Partial>
+  <SAU_Failed>Scan failed; earlier results are stale. No automatic orders.</SAU_Failed>
+  <SAU_Stale>Settings changed or no snapshot. Rescan; automatic operation has a grace interval after load/settings changes.</SAU_Stale>
+  <SAU_ScanTime>Scan duration: {0} ms (not TPS impact)</SAU_ScanTime>
+  <SAU_ManagerDetected>Diagnostics only: outfit/wardrobe manager detected.</SAU_ManagerDetected>
+  <SAU_Patched>Diagnostics only: apparel management method has Harmony patches.</SAU_Patched>
+  <SAU_InspectionFailed>Diagnostics only: patch inspection could not establish safety.</SAU_InspectionFailed>
+  <SAU_ReasonUnknown>Unknown or target changed; no automatic order</SAU_ReasonUnknown>
+  <SAU_ReasonLocked>Would replace locked apparel</SAU_ReasonLocked>
+  <SAU_ReasonForced>Would replace forced or non-droppable apparel</SAU_ReasonForced>
+  <SAU_ReasonPolicy>Current apparel policy excludes candidate</SAU_ReasonPolicy>
+  <SAU_ReasonTainted>Corpse-worn apparel excluded conservatively</SAU_ReasonTainted>
+  <SAU_ReasonBody>Pawn/body/race/DLC wearability check rejects candidate</SAU_ReasonBody>
+  <SAU_ReasonRequirement>Conflicts with an apparel requirement or removes a required garment</SAU_ReasonRequirement>
+  <SAU_ReasonMultiple>Would remove more than the one compared garment; diagnostics only</SAU_ReasonMultiple>
+  <SAU_ReasonCoverage>Body-part groups or layers differ; diagnostics only</SAU_ReasonCoverage>
+  <SAU_ReasonInvalid>Invalid/non-finite score or stat; cannot establish improvement</SAU_ReasonInvalid>
+  <SAU_ReasonQuality>Quality difference below configured minimum</SAU_ReasonQuality>
+  <SAU_ReasonCondition>Condition below minimum or worse than current garment</SAU_ReasonCondition>
+  <SAU_ReasonRegression>At least one protection/insulation stat decreases</SAU_ReasonRegression>
+  <SAU_ReasonGain>Insufficient raw-score gain or nonpositive vanilla net gain</SAU_ReasonGain>
+  <SAU_ReasonForbidden>Candidate is forbidden or outside allowed access</SAU_ReasonForbidden>
+  <SAU_ReasonReserved>Cannot reserve candidate (reservation or another eligibility restriction)</SAU_ReasonReserved>
+  <SAU_ReasonUnverified>Reachability not checked due to budget; no automatic order</SAU_ReasonUnverified>
+  <SAU_ReasonReach>No safe reachable path</SAU_ReasonReach>
+  <SAU_ReasonCrossType>Different type/material: special effects unverified; diagnostics only</SAU_ReasonCrossType>
+  <SAU_ReasonManager>Another apparel manager/patch controls outfits; diagnostics only</SAU_ReasonManager>
+  <SAU_ReasonBusy>Manual/queued/useful job, sleep, injury, drafting, mental state or threat; defer</SAU_ReasonBusy>
+  <SAU_ReasonCooldown>Cooldown or reversal guard active</SAU_ReasonCooldown>
+  <SAU_ReasonEligible>Eligible after sampled checks; auto must be explicitly enabled</SAU_ReasonEligible>
+  <SAU_ReasonOrdered>Vanilla Wear job ordered; actual completion is not confirmed</SAU_ReasonOrdered>
 </LanguageData>
