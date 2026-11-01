@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LanguageData>
+  <SAU_Description>同種・同素材で高品質の衣服を検索します。自動着替えは初期設定で無効です。</SAU_Description>
+  <SAU_Auto>待機中の入植者に自動着替えを指示（任意）</SAU_Auto>
+  <SAU_MinimumQuality>最低品質差: {0}段階</SAU_MinimumQuality>
+  <SAU_MinimumHP>候補の最低耐久度: {0}%</SAU_MinimumHP>
+  <SAU_Scan>候補を検索</SAU_Scan>
+  <SAU_Count>交換候補: {0}件</SAU_Count>
+  <SAU_Excluded>除外比較: ポリシー{0} / 耐久{1} / 到達{2} / 品質{3}</SAU_Excluded>
+</LanguageData>

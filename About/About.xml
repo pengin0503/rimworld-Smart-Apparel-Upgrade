@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ModMetaData>
+  <name>Smart Apparel Upgrade</name>
+  <author>pengin0503</author>
+  <packageId>pengin0503.smartapparelupgrade</packageId>
+  <supportedVersions><li>1.7</li></supportedVersions>
+  <description>Searches higher-quality same-type clothing and optionally orders non-working pawns to upgrade. Experimental development source.</description>
+</ModMetaData>

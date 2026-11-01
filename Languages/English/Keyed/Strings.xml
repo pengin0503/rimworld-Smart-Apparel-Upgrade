@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LanguageData>
+  <SAU_Description>Find higher-quality clothes of identical type and material. Automatic wear is OFF by default.</SAU_Description>
+  <SAU_Auto>Automatically order idle pawns to upgrade (opt-in)</SAU_Auto>
+  <SAU_MinimumQuality>Minimum quality gain: {0}</SAU_MinimumQuality>
+  <SAU_MinimumHP>Minimum condition: {0}%</SAU_MinimumHP>
+  <SAU_Scan>Scan for upgrades</SAU_Scan>
+  <SAU_Count>Recommendations: {0}</SAU_Count>
+  <SAU_Excluded>Excluded comparisons - policy {0}, durability {1}, access {2}, quality {3}</SAU_Excluded>
+</LanguageData>
