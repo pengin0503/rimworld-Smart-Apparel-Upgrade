@@ -98,3 +98,36 @@ Checks performed:
 Confirmed by code review: every displaced garment is aggregated, coverage/layers must match exactly, special/unknown gear and changed equipped offsets are diagnostic-only, there is a full live recheck before the job, unchecked candidates never order, extra slots are never filled, and the legacy single-ID history still loads.
 
 Still unverified, and not claimed: actual completed Wear jobs in play, absence of gameplay loops, populated policy/race/DLC scenarios, full-map save/load and removal, co-loaded outfit managers, large-colony scan time/TPS and compatibility with large mod lists. The earlier A-level and 12,000-tick evidence was produced on earlier DLL bytes.
+
+## v1.0.1 (2026-11-01)
+
+### Issues resolved
+
+| Issue | Change |
+|---|---|
+| #7 | The stock window rotates when stock exceeds 10,000. Each pawn keeps a candidate cursor, so capped scans resume where they stopped. Candidates that cannot pass Compare (no overlap, condition below the minimum, quality gain below the minimum) are dropped before consuming budget. Extra-slot rows use their own budget (150) and only policy-allowed items. Rows of pawns not reached this scan are kept for display only. |
+| #8 | Permanent scars no longer block automation. The in-game probe also showed that the vanilla `HasHediffsNeedingTend`/`ShouldSeekMedicalRest` fire for chronic tendable conditions (Asthma) and would block such pawns forever. Care is now: bleeding, labor, tended-and-healing injury, immunizable illness, surgery due, a non-chronic tendable hediff, or a non-permanent injury. |
+| #9 | Japanese and English About.xml descriptions carry the same scope. |
+| #10 | Every patched watched method and its owners are listed. Each owner can be explicitly allowed (at the player's risk); unreadable owners and outfit managers cannot be allowed. Detection is cached for 60,000 ticks or until settings change. |
+| #11 | Each comparison and each pawn is isolated. A failed comparison becomes a `SAU_ReasonError` row, never an order, and failures are counted in the UI. A failed recheck before ordering skips the order. |
+| #12 | Before scoring a pawn, `JobGiver_OptimizeApparel.neededWarmth` is set from `PawnApparelGenerator.CalculateNeededWarmth(pawn, tile, twelfth)` and restored afterwards. |
+| #13 | Rows are sorted (eligible, actionable, other, non-improvement), can be filtered by colonist, and non-improvement rows are hidden by default. |
+
+### Optimisation
+
+- `ApparelUtility.CanWearTogether` results are cached per scan by (def, def, body).
+- Manager and patch inspection is cached instead of reflecting over the watched types on every scan.
+
+### Checks performed
+
+- 29 model assertions pass.
+- `validate_package.py` passes (51 keys).
+- Release build has 0 warnings and 0 errors against the exact private 1.7.4985 rev1269 DLLs, and also against `Krafs.Rimworld.Ref`.
+- Static reference check: 146 members and 94 types matched, 0 mismatches.
+- Real game, Linux WaylithClr 1.7.4985 rev1269, private host. The probe was private and not published. D bounded tick of 2,400 ticks (Crashlanded) completed the D stage; overall status was incomplete, as the host always reports.
+  - The probe dressed colonists A and B in a normal-quality basic shirt and placed an excellent one next to each.
+  - **Control B**: the vanilla player-order path `TryTakeOrderedJob(Wear)` gave `playerForced=True`. After wearing, `IsForced(newShirt)=True`. This is the v1.0.0 defect, observed in the real game.
+  - **Colonist A (this mod)**: Asthma (chronic) plus permanent scars. The row was `SAU_ReasonEligible`, and the mod issued a Wear job with `playerForced=False`. A wore the excellent shirt with `IsForced=False`.
+  - No new errors appeared during ticks.
+
+Still unverified: long normal gameplay (loops, outfit regressions), cross-material and multi-removal swaps in play, co-loaded outfit managers, populated race/DLC scenarios, full-map save/load and removal, large-colony scan time/TPS and large mod lists.

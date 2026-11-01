@@ -39,7 +39,7 @@
   <SAU_ReasonReach>No safe reachable path</SAU_ReasonReach>
   <SAU_ReasonCrossType>Different type/material: special effects unverified; diagnostics only</SAU_ReasonCrossType>
   <SAU_ReasonManager>Another apparel manager/patch controls outfits; diagnostics only</SAU_ReasonManager>
-  <SAU_ReasonBusy>Manual/queued/useful job, sleep, injury, drafting, mental state or threat; defer</SAU_ReasonBusy>
+  <SAU_ReasonBusy>Manual/queued/useful job, sleep, a condition needing care (bleeding, medical rest, untreated non-chronic illness, healing wound), drafting, mental state or threat; defer</SAU_ReasonBusy>
   <SAU_ReasonCooldown>Cooldown or reversal guard active</SAU_ReasonCooldown>
   <SAU_ReasonEligible>Eligible after sampled checks; auto must be explicitly enabled</SAU_ReasonEligible>
   <SAU_ReasonOrdered>Vanilla Wear job ordered; actual completion is not confirmed</SAU_ReasonOrdered>
@@ -47,4 +47,11 @@
   <SAU_ReasonUnknownQuality>At least one quality is unavailable; no automatic order</SAU_ReasonUnknownQuality>
   <SAU_ReasonExtraSlot>Additional slot, with no garment to upgrade; shown for diagnosis only</SAU_ReasonExtraSlot>
   <SAU_EmptySlot>No current garment</SAU_EmptySlot>
+  <SAU_ReasonError>Could not be evaluated (exception; see detail); no automatic order</SAU_ReasonError>
+  <SAU_FailedItems>{0} comparisons could not be evaluated and were skipped.</SAU_FailedItems>
+  <SAU_PatchHeader>Harmony patches on watched apparel methods (automatic swaps stay off unless every owner is allowed):</SAU_PatchHeader>
+  <SAU_AllowOwner>Allow automatic swaps despite patches by {0} (at your own risk)</SAU_AllowOwner>
+  <SAU_HideNonImprovements>Hide rows that are not improvements</SAU_HideNonImprovements>
+  <SAU_AllPawns>All colonists</SAU_AllPawns>
+  <SAU_PawnFilter>Colonist: {0}</SAU_PawnFilter>
 </LanguageData>
