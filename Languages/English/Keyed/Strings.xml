@@ -1,18 +1,18 @@
 <?xml version='1.0' encoding='utf-8'?>
 <LanguageData>
-  <SAU_Description>Individual replacement diagnostics. Auto mode defaults OFF and only replaces one same-type/material garment. Scores and safety checks do not prove gameplay compatibility.</SAU_Description>
+  <SAU_Description>Individual garment replacement diagnostics. Auto mode defaults OFF. Only verified improvements with preserved coverage and ordinary gear are eligible. Gameplay compatibility remains unverified.</SAU_Description>
   <SAU_Auto>Automatically order idle pawns to upgrade (opt-in)</SAU_Auto>
   <SAU_MinimumQuality>Minimum quality gain: {0}</SAU_MinimumQuality>
   <SAU_MinimumHP>Minimum condition: {0}%</SAU_MinimumHP>
   <SAU_Scan>Scan for upgrades</SAU_Scan>
   <SAU_Count>Comparisons: {0} / currently eligible for auto: {1}</SAU_Count>
   <SAU_Excluded>Excluded comparisons - policy {0}, durability {1}, access {2}, quality {3}</SAU_Excluded>
-  <SAU_PreferSame>Prioritize same type and material in diagnostics</SAU_PreferSame>
+  <SAU_PreferSame>Prioritize same type and material in diagnostics and automatic orders</SAU_PreferSame>
   <SAU_MinimumPerformance>Minimum raw-score improvement (%): {0}</SAU_MinimumPerformance>
-  <SAU_Profile>Quality {0}→{1} (0–6); condition {2}%→{3}%; score {4}→{5}</SAU_Profile>
+  <SAU_Profile>Removed garment aggregate → candidate: max quality {0}→{1} (0–6); max condition {2}%→{3}%; summed raw score {4}→{5}</SAU_Profile>
   <SAU_Stats>Sharp/blunt/heat armor, cold/heat insulation: {0} → {1}</SAU_Stats>
   <SAU_Jump>Locate</SAU_Jump>
-  <SAU_Partial>Partial: stock/comparison/path budget reached. Auto orders are disabled for this snapshot.</SAU_Partial>
+  <SAU_Partial>Partial: stock/comparison/path budget reached. Only individually verified candidates may be ordered after live rechecking. Unchecked entries never issue orders.</SAU_Partial>
   <SAU_Failed>Scan failed; earlier results are stale. No automatic orders.</SAU_Failed>
   <SAU_Stale>Settings changed or no snapshot. Rescan; automatic operation has a grace interval after load/settings changes.</SAU_Stale>
   <SAU_ScanTime>Scan duration: {0} ms (not TPS impact)</SAU_ScanTime>
@@ -31,7 +31,7 @@
   <SAU_ReasonInvalid>Invalid/non-finite score or stat; cannot establish improvement</SAU_ReasonInvalid>
   <SAU_ReasonQuality>Quality difference below configured minimum</SAU_ReasonQuality>
   <SAU_ReasonCondition>Condition below minimum or worse than current garment</SAU_ReasonCondition>
-  <SAU_ReasonRegression>At least one protection/insulation stat decreases</SAU_ReasonRegression>
+  <SAU_ReasonRegression>Protection, insulation, mass, maximum hit points or wear rate would regress</SAU_ReasonRegression>
   <SAU_ReasonGain>Insufficient raw-score gain or nonpositive vanilla net gain</SAU_ReasonGain>
   <SAU_ReasonForbidden>Candidate is forbidden or outside allowed access</SAU_ReasonForbidden>
   <SAU_ReasonReserved>Cannot reserve candidate (reservation or another eligibility restriction)</SAU_ReasonReserved>
@@ -43,4 +43,8 @@
   <SAU_ReasonCooldown>Cooldown or reversal guard active</SAU_ReasonCooldown>
   <SAU_ReasonEligible>Eligible after sampled checks; auto must be explicitly enabled</SAU_ReasonEligible>
   <SAU_ReasonOrdered>Vanilla Wear job ordered; actual completion is not confirmed</SAU_ReasonOrdered>
+  <SAU_ReasonSpecial>Special components, abilities or changed equipped-stat offsets: cannot establish safe replacement; diagnostics only</SAU_ReasonSpecial>
+  <SAU_ReasonUnknownQuality>At least one quality is unavailable; no automatic order</SAU_ReasonUnknownQuality>
+  <SAU_ReasonExtraSlot>Additional slot, with no garment to upgrade; shown for diagnosis only</SAU_ReasonExtraSlot>
+  <SAU_EmptySlot>No current garment</SAU_EmptySlot>
 </LanguageData>

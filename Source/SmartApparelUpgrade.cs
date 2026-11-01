@@ -29,19 +29,23 @@ namespace Pengin.SmartApparelUpgrade
     {
         public string PawnId,TargetId,RemovedId;
         public int LastIssued;
+        public List<string> RemovedIds=new List<string>();
         public void ExposeData()
         {
             Scribe_Values.Look(ref PawnId,"pawn","");Scribe_Values.Look(ref TargetId,"target","");
             Scribe_Values.Look(ref RemovedId,"removed","");Scribe_Values.Look(ref LastIssued,"last",0);
+            Scribe_Collections.Look(ref RemovedIds,"removedIds",LookMode.Value);
+            if(RemovedIds==null)RemovedIds=new List<string>();
         }
     }
     public sealed class UpgradeChoice
     {
         public Pawn Pawn;public Apparel Worn,Better;
+        public List<Apparel> Displaced;
         public string Reason,Detail;
         public bool SafeAuto;
         public double ScoreGain;
-        public string Label {get{return Pawn.LabelShort+": "+Worn.LabelShort+" → "+Better.LabelShort;}}
+        public string Label {get{return Pawn.LabelShort+": "+(Displaced==null?(Worn==null?"SAU_EmptySlot".Translate().ToString():Worn.LabelShort):string.Join(" + ",Displaced.Select(a=>a.LabelShort)))+" → "+Better.LabelShort;}}
     }
     public sealed class ApparelScanner : MapComponent
     {
@@ -76,7 +80,7 @@ namespace Pengin.SmartApparelUpgrade
             {resumeAt=now+Interval;observedSettings=settings.Signature;}
             if(now%Interval!=map.uniqueID%Interval)return;
             Scan();
-            if(settings.AutoWear&&!Partial&&!Failed&&now>=resumeAt)
+            if(settings.AutoWear&&!Failed&&now>=resumeAt)
             {
                 try{OrderIdleUpgrades();}
                 catch(Exception e)
@@ -110,6 +114,7 @@ namespace Pengin.SmartApparelUpgrade
                 {
                     int index=(pawnOffset+i)%pawns.Count;Pawn pawn=pawns[index];
                     var scores=pawn.apparel.WornApparel.Select(a=>JobGiver_OptimizeApparel.ApparelScoreRaw(pawn,a)).ToList();
+                    var seen=new HashSet<Apparel>();
                     foreach(Apparel worn in pawn.apparel.WornApparel)
                     {
                         var relevant=worn.def.apparel.layers.Where(l=>byLayer.ContainsKey(l)).SelectMany(l=>byLayer[l]).Distinct()
@@ -118,13 +123,27 @@ namespace Pengin.SmartApparelUpgrade
                         {
                             if(--budget<0){partial=true;break;}
                             QualityCategory oldQuality,newQuality;
-                            if(!QualityUtility.TryGetQuality(worn,out oldQuality)||!QualityUtility.TryGetQuality(candidate,out newQuality))continue;
-                            if(newQuality<oldQuality)continue;
+                            if(QualityUtility.TryGetQuality(worn,out oldQuality)&&QualityUtility.TryGetQuality(candidate,out newQuality)&&newQuality<oldQuality)continue;
                             if(ApparelUtility.CanWearTogether(worn.def,candidate.def,pawn.RaceProps.body))continue;
+                            if(!seen.Add(candidate))continue;
                             next.Add(Evaluate(pawn,worn,candidate,scores,ref paths));
                         }
                         if(budget<0)break;
                     }
+                    if(budget>=0)
+                        foreach(Apparel candidate in stock.Where(a=>!seen.Contains(a)))
+                        {
+                            if(--budget<0){partial=true;break;}
+                            if(pawn.apparel.WornApparel.Any(a=>!ApparelUtility.CanWearTogether(a.def,candidate.def,pawn.RaceProps.body)))continue;
+                            string reason="SAU_ReasonExtraSlot";
+                            if(pawn.outfits.CurrentApparelPolicy==null||!pawn.outfits.CurrentApparelPolicy.filter.Allows(candidate))reason="SAU_ReasonPolicy";
+                            else if(!candidate.PawnCanWear(pawn,false)||!ApparelUtility.HasPartsToWear(pawn,candidate.def))reason="SAU_ReasonBody";
+                            else if(candidate.IsForbidden(pawn))reason="SAU_ReasonForbidden";
+                            else if(!pawn.CanReserve(candidate))reason="SAU_ReasonReserved";
+                            else if(paths--<=0)reason="SAU_ReasonUnverified";
+                            else if(!pawn.CanReach(candidate,PathEndMode.Touch,Danger.None))reason="SAU_ReasonReach";
+                            next.Add(new UpgradeChoice{Pawn=pawn,Better=candidate,Reason=reason});
+                        }
                     if(budget<0){pawnOffset=(index+1)%pawns.Count;break;}
                 }
                 choices=next;Partial=partial||paths<0;Failed=false;
@@ -144,8 +163,8 @@ namespace Pengin.SmartApparelUpgrade
                 if(cache.TryGetValue(item,out cached))return cached;
             }
             QualityCategory quality;
-            if(!QualityUtility.TryGetQuality(item,out quality))return null;
-            var profile=new Garment{Quality=(int)quality,Condition=item.MaxHitPoints>0?(double)item.HitPoints/item.MaxHitPoints:0,
+            bool hasQuality=QualityUtility.TryGetQuality(item,out quality);
+            var profile=new Garment{Quality=hasQuality?(int)quality:-1,Condition=item.MaxHitPoints>0?(double)item.HitPoints/item.MaxHitPoints:0,
                 Score=JobGiver_OptimizeApparel.ApparelScoreRaw(pawn,item),Stats=protection.Select(s=>(double)item.GetStatValue(s)).ToArray()};
             if(cache!=null)cache[item]=profile;return profile;
         }
@@ -153,8 +172,10 @@ namespace Pengin.SmartApparelUpgrade
         {
             var row=new UpgradeChoice{Pawn=pawn,Worn=worn,Better=candidate,Reason="SAU_ReasonUnknown"};
             if(candidate.Destroyed||!candidate.Spawned||candidate.Wearer!=null||worn.Wearer!=pawn||pawn.Map!=map||candidate.Map!=map)return row;
-            Garment old=Profile(pawn,worn),better=Profile(pawn,candidate);
-            if(old==null||better==null)return row;
+            var displaced=pawn.apparel.WornApparel.Where(a=>!ApparelUtility.CanWearTogether(a.def,candidate.def,pawn.RaceProps.body)).ToList();
+            row.Displaced=displaced;
+            Garment old=SwapSafety.Combine(displaced.Select(a=>Profile(pawn,a))),better=Profile(pawn,candidate);
+            if(old==null||better==null||better.Quality<0){row.Reason="SAU_ReasonUnknownQuality";return row;}
             row.Detail="SAU_Profile".Translate(old.Quality,better.Quality,(old.Condition*100).ToString("0"),(better.Condition*100).ToString("0"),
                 old.Score.ToString("0.000"),better.Score.ToString("0.000"))+"\n"+
                 "SAU_Stats".Translate(string.Join("/",old.Stats.Select(x=>x.ToString("0.00"))),string.Join("/",better.Stats.Select(x=>x.ToString("0.00"))));
@@ -167,16 +188,14 @@ namespace Pengin.SmartApparelUpgrade
             if(!candidate.PawnCanWear(pawn,false)||!ApparelUtility.HasPartsToWear(pawn,candidate.def))
             {row.Reason="SAU_ReasonBody";return row;}
             if(pawn.apparel.WouldReplaceLockedApparel(candidate)){row.Reason="SAU_ReasonLocked";return row;}
-            var displaced=pawn.apparel.WornApparel.Where(a=>!ApparelUtility.CanWearTogether(a.def,candidate.def,pawn.RaceProps.body)).ToList();
             if(displaced.Any(a=>pawn.apparel.IsLocked(a)||(pawn.outfits.forcedHandler!=null&&!pawn.outfits.forcedHandler.AllowedToAutomaticallyDrop(a))))
             {row.Reason="SAU_ReasonForced";return row;}
             foreach(ApparelRequirementWithSource requirement in pawn.apparel.AllRequirements)
                 if(!requirement.requirement.AllowedForPawn(pawn,candidate.def,false)||
-                    (requirement.requirement.RequiredForPawn(pawn,worn.def,false)&&!requirement.requirement.RequiredForPawn(pawn,candidate.def,false)))
+                    (displaced.Any(a=>requirement.requirement.RequiredForPawn(pawn,a.def,false))&&!requirement.requirement.RequiredForPawn(pawn,candidate.def,false)))
                 {row.Reason="SAU_ReasonRequirement";return row;}
-            if(displaced.Count!=1||displaced[0]!=worn){row.Reason="SAU_ReasonMultiple";return row;}
-            bool sameCoverage=new HashSet<BodyPartGroupDef>(candidate.def.apparel.bodyPartGroups).SetEquals(worn.def.apparel.bodyPartGroups)&&
-                new HashSet<ApparelLayerDef>(candidate.def.apparel.layers).SetEquals(worn.def.apparel.layers);
+            bool sameCoverage=new HashSet<BodyPartGroupDef>(candidate.def.apparel.bodyPartGroups).SetEquals(displaced.SelectMany(a=>a.def.apparel.bodyPartGroups))&&
+                new HashSet<ApparelLayerDef>(candidate.def.apparel.layers).SetEquals(displaced.SelectMany(a=>a.def.apparel.layers));
             if(!sameCoverage){row.Reason="SAU_ReasonCoverage";return row;}
             double net=JobGiver_OptimizeApparel.ApparelScoreGain(pawn,candidate,scores);row.ScoreGain=net;
             ApparelSettings s=ApparelUpgradeMod.Settings;
@@ -187,13 +206,37 @@ namespace Pengin.SmartApparelUpgrade
             if(!pawn.CanReserve(candidate)){row.Reason="SAU_ReasonReserved";return row;}
             if(paths--<=0){row.Reason="SAU_ReasonUnverified";return row;}
             if(!pawn.CanReach(candidate,PathEndMode.Touch,Danger.None)){row.Reason="SAU_ReasonReach";return row;}
-            if(worn.def!=candidate.def||worn.Stuff!=candidate.Stuff){row.Reason="SAU_ReasonCrossType";return row;}
+            if(!OrdinaryGear(candidate)||displaced.Any(a=>!OrdinaryGear(a)))
+            {row.Reason="SAU_ReasonSpecial";return row;}
+            // Unknown stat directions cannot be treated as improvements. Preserve all equipped offsets.
+            var offsets=displaced.Concat(new[]{candidate}).SelectMany(a=>a.def.equippedStatOffsets??new List<StatModifier>())
+                .Select(m=>m.stat).Distinct();
+            foreach(StatDef stat in offsets)
+                if(!SwapSafety.SameFinite(displaced.Sum(a=>(double)StatWorker.StatOffsetFromGear(a,stat)),StatWorker.StatOffsetFromGear(candidate,stat)))
+                {row.Reason="SAU_ReasonSpecial";return row;}
+            if(displaced.Count!=1||worn.def!=candidate.def||worn.Stuff!=candidate.Stuff)
+            {
+                double mass=candidate.GetStatValue(StatDefOf.Mass),oldMass=displaced.Sum(a=>(double)a.GetStatValue(StatDefOf.Mass));
+                double wear=candidate.def.apparel.wearPerDay,oldWear=displaced.Min(a=>(double)a.def.apparel.wearPerDay);
+                if(double.IsNaN(mass)||double.IsInfinity(mass)||double.IsNaN(oldMass)||double.IsInfinity(oldMass)||
+                    double.IsNaN(wear)||double.IsInfinity(wear)||double.IsNaN(oldWear)||double.IsInfinity(oldWear)||
+                    mass>oldMass+1e-6||
+                    candidate.MaxHitPoints<displaced.Max(a=>a.MaxHitPoints)||
+                    wear>oldWear+1e-6)
+                {row.Reason="SAU_ReasonRegression";return row;}
+            }
             if(!string.IsNullOrEmpty(AutoBlockKey)){row.Reason="SAU_ReasonManager";return row;}
             if(!SwapSafety.CanAct(Activity(pawn))){row.Reason="SAU_ReasonBusy";return row;}
             SwapStamp stamp=stamps.FirstOrDefault(x=>x.PawnId==pawn.ThingID);
-            if(stamp!=null&&!SwapSafety.CooldownAllows(Find.TickManager.TicksGame,stamp.LastIssued,candidate.ThingID,stamp.RemovedId))
+            if(stamp!=null&&stamp.RemovedIds.Concat(new[]{stamp.RemovedId}).Any(id=>!SwapSafety.CooldownAllows(Find.TickManager.TicksGame,stamp.LastIssued,candidate.ThingID,id)))
             {row.Reason="SAU_ReasonCooldown";return row;}
             row.Reason="SAU_ReasonEligible";row.SafeAuto=true;return row;
+        }
+        static bool OrdinaryGear(Apparel item)
+        {
+            if(item.GetType()!=typeof(Apparel))return false;
+            string[] passive={"CompQuality","CompColorable","CompForbiddable","CompStyleable"};
+            return item.AllComps.All(c=>c.GetType().Assembly==typeof(Apparel).Assembly&&passive.Contains(c.GetType().Name));
         }
         IdleState Activity(Pawn p)
         {
@@ -226,7 +269,7 @@ namespace Pengin.SmartApparelUpgrade
             DetectManagers();if(!string.IsNullOrEmpty(AutoBlockKey))return;
             threat=GenHostility.AnyHostileActiveThreatToPlayer(map);profileCache=null;
             var issued=new HashSet<Pawn>();var claimed=new HashSet<Apparel>();int now=Find.TickManager.TicksGame;
-            foreach(UpgradeChoice choice in choices.Where(c=>c.SafeAuto).OrderByDescending(c=>c.ScoreGain))
+            foreach(UpgradeChoice choice in choices.Where(c=>c.SafeAuto).OrderByDescending(c=>ApparelUpgradeMod.Settings.PreferSameTypeAndStuff&&c.Displaced.Count==1&&c.Worn.def==c.Better.def&&c.Worn.Stuff==c.Better.Stuff).ThenByDescending(c=>c.ScoreGain))
             {
                 Pawn pawn=choice.Pawn;
                 if(issued.Contains(pawn)||claimed.Contains(choice.Better)||!SwapSafety.CanAct(Activity(pawn)))continue;
@@ -238,7 +281,7 @@ namespace Pengin.SmartApparelUpgrade
                 {
                     issued.Add(pawn);claimed.Add(choice.Better);
                     stamps.RemoveAll(s=>s.PawnId==pawn.ThingID);
-                    stamps.Add(new SwapStamp{PawnId=pawn.ThingID,TargetId=choice.Better.ThingID,RemovedId=choice.Worn.ThingID,LastIssued=now});
+                    stamps.Add(new SwapStamp{PawnId=pawn.ThingID,TargetId=choice.Better.ThingID,RemovedId=choice.Worn.ThingID,RemovedIds=fresh.Displaced.Select(a=>a.ThingID).ToList(),LastIssued=now});
                     choice.Reason="SAU_ReasonOrdered";choice.SafeAuto=false;
                 }
             }
