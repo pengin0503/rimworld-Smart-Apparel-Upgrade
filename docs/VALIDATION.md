@@ -34,11 +34,29 @@ Related managers or relevant Harmony patches force diagnostics-only mode; failed
 
 ### Release blockers / 正式版までの残作業
 
-- No new qualified A load, generated map/finite game ticks, real completed swap, policy-change/gameplay acceptance, whole-map save/load, mid-save installation/removal or co-loaded manager/race/DLC test has yet run for this new DLL. Previous A evidence is historical only.
-- The safety model tests do not exercise real Wear job effects, reservation API behavior, game-body compatibility or actual Scribe serialization. Stock-CLR Scribe integration in the preceding MOD failed on game ObjectPool/WaylithClr binding; this is not save/load proof here.
+- At the initial checkpoint, fresh A/map/tick checks had not run. Final evidence below updates those scopes; real completed swaps, policy-change acceptance, whole-map save/load, installation/removal and manager/race/DLC gameplay remain unverified.
+- The safety model tests do not exercise real Wear job effects, reservation API behavior, game-body compatibility or actual Scribe serialization. The initial direct Scribe attempt failed on missing game dependencies/uninitialized prefs; the final isolated settings/history checks below pass, without proving whole-map save/load.
 - Cross-type/material and multiple-removal automation remains intentionally unsupported. Custom equipped stat offsets/abilities and required environmental gear are not exhaustively modeled; conservative same-type/material automation still requires actual gameplay acceptance. Any injury (including a scar) defers automation.
 - Diagnostics are bounded to 10,000 stock items / 2,500 comparisons / 64 path checks per scan, every 10,000 ticks with rotating pawn starts for truncated scans. High counts or unverified access disable auto for that snapshot. Missing-quality items and non-overlapping extra slots are not full individual diagnostic coverage.
 - Manager-name safeguards may be overbroad; unknown or renamed managers that do not patch inspected methods may be missed. No compatibility claim is made from name tests.
 - UI layout, 270+ MOD compatibility, actual scan allocation/time and TPS are unmeasured. No v1.0 release. Issue #1 stays open.
 
 日本語: 入植者・衣服別の理由と性能比較、品質・耐久度・性能下限、強制着用・ロック・服装要件等の確認、再指示・逆交換防止、保存する履歴、ロード後の猶予、管理MOD検出による診断専用化を追加しました。実物DLL参照ビルドと24項目のモデルテスト・日英キー・開発版パッケージは合格しました。実際の着替え、セーブとロード、途中導入・削除、270以上のMOD、実UI・性能は未検証です。異種・異素材や複数脱衣の自動交換、特殊効果の網羅的評価は未対応のため正式版にはしません。
+
+## Final private-runtime evidence (2026-11-01)
+
+- [Pinned private-host run](https://github.com/pengin0503/RimWorld-for-mod-test/actions/runs/41278778403) completed successfully. Only safe rebuilt summaries were printed; raw game files, saves and private logs were not published.
+- Fresh qualified **A=passed**, exit 0, no reason codes, for the source revision in [runtime-smoke.json](evidence/2026-11-01-runtime-smoke.json).
+- Generated-map finite-tick smoke: actual game tick and independent registered `fixture.counter` both equal **0, 60, 600, 12,000**. **D stage=completed**, but **overall=incomplete** with `experimental`, `dNotQualified`, `mapNotQualified`. The host CI success means these limited expectations were met; it is not promotion to qualified D or game feature acceptance. No new errors/warnings were reported by that comparison.
+- The registered observer measures its fixture counter, not our work diagnosis, feed accuracy, apparel effects or scan timing. The fixture map and Core/Japanese conditions do not represent a populated or 270+ MOD colony. No TPS claim is made.
+- Local model benchmark conditions: Linux x86_64, AMD EPYC 9V74, 9 logical CPUs exposed, SDK 10.0.111 / .NET 10.0.11, Release, single-run measurements with game API/GUI/pathfinding excluded. No before/after optimization claim.
+
+### Primitive Scribe integration
+
+`dotnet run --project Tests.Game/Tests.Game.csproj -c Release -p:RimWorldManaged=<matching-private-game-dir> -p:GameExtraManaged=<matching-private-extra-dir>` exercises the real game Scribe under stock .NET for isolated primitive data. The extra directory contains only matching R2 ObjectPool and Steamworks managed dependencies. The fixture supplies the game's real default `PrefsData` because normal engine startup is absent. These files are test inputs only and are never committed or packaged.
+
+**PASS:** all five settings and SwapStamp pawn/target/removed IDs and tick round trip; restored cooldown blocks immediate retry. This does not verify a whole map or completed Wear job. Static index comparison: 122 member signatures and 75 types matched; 183 external-framework references remain outside the indexed assembly set, with no indexed game-reference mismatch. Final self-review additionally contained exceptions during optional order issuance.
+
+**Still blocked for v1.0:** normal populated gameplay, full-map save/load and installation/removal, actual task/feeding/wear acceptance, real outfit-manager/race/DLC interactions, 270+ MOD compatibility and actual large-map scan/TPS measurement. Earlier implementation gaps and scenario limitations remain; Issue #1 is open and no v1.0 release is created.
+
+日本語: 最新コミットで実ゲーム読み込みAは合格し、実ゲームTickと独立fixtureが12,000 Tickまで一致しました。ただしD・マップ生成は未適格化で総合判定はincompleteです。実物Scribeによる限定的なデータ往復も合格しましたが、通常プレイやマップ全体の保存・読み込み、実際の業務動作、270以上のMOD環境・実TPSの検証にはなりません。Issue #1と正式版の保留を維持します。
