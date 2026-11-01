@@ -201,12 +201,13 @@ namespace Pengin.SmartApparelUpgrade
                         if(!stopped)cursors[pawn.thingIDNumber]=0;
                         // Free slots: diagnostics only, from a separate small budget, and only for
                         // apparel the pawn's policy allows (other entries are not candidates).
-                        if(!stopped&&extraRows>0&&pawn.outfits.CurrentApparelPolicy!=null)
+                        if(!stopped&&pawn.outfits.CurrentApparelPolicy!=null)
                             foreach(Apparel candidate in stock)
                             {
-                                if(extraRows<=0)break;
                                 if(paired.Contains(candidate)||!pawn.outfits.CurrentApparelPolicy.filter.Allows(candidate))continue;
-                                if(pawn.apparel.WornApparel.Any(a=>!ApparelUtility.CanWearTogether(a.def,candidate.def,pawn.RaceProps.body)))continue;
+                                if(pawn.apparel.WornApparel.Any(a=>!WearTogether(a.def,candidate.def,pawn.RaceProps.body)))continue;
+                                // A truncated diagnostic list is reported as partial, never as complete.
+                                if(extraRows<=0){partial=true;break;}
                                 extraRows--;
                                 string reason="SAU_ReasonExtraSlot";
                                 if(!candidate.PawnCanWear(pawn,false)||!ApparelUtility.HasPartsToWear(pawn,candidate.def))reason="SAU_ReasonBody";
