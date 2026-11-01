@@ -3,17 +3,25 @@
 [日本語](#日本語) | [English](#english)
 
 ## 日本語
-RimWorld 1.7向けの服装アップグレード支援MOD。同じ種類・素材で、品質と耐久度がより高い服を探し、服装ポリシーとアクセス可否を確認します。設定画面に交換候補数と除外比較の件数を表示します。
 
-**状態: 開発版。コンパイルとゲーム内動作は未検証です。** 自動着替えは初期設定で無効です。有効化した場合も、基本的に待機中の入植者にだけバニラの着替えJobを指示します。強制着用やロック中の服には介入しません。他の衣服制御MODとの自動運用は未検証です。
+Smart Apparel Upgradeは、RimWorld 1.7で高品質の服を作っても入植者が着ない場合に、交換候補を探すためのMODです。同じ種類・素材の服を比較し、品質、耐久度、服装ポリシー、到達可否を確認します。除外候補の理由を分類して集計します。
 
-### ビルド
-.NET 10 SDKと同じバージョンのRimWorld 1.7 DLLが必要です。 `dotnet build Source/SmartApparelUpgrade.csproj -c Release /p:RimWorldManaged=/path/to/RimWorld` 。ゲームDLLは同梱しません。
+自動交換を任意で有効にすると、待機中の入植者にゲーム標準の着替え指示を出します。自動交換は**初期状態で無効**です。強制着用やロック中の服には介入しません。
+
+**現在は開発版で、ゲーム内動作および他の服装管理MODとの互換性は未確認です。** 自動交換は重要なセーブで有効にしないでください。
+
+### 利用方法
+
+RimWorld 1.7用のビルドをMODフォルダに配置して有効化し、「設定」→「MOD設定」→「Smart Apparel Upgrade」を開いてください。最初は候補検索のみを利用してください。
 
 ## English
-A RimWorld 1.7 apparel-upgrade utility. Finds clothing with the same type and material but better quality and condition while respecting apparel policies and accessibility. Settings display recommendations and rejected-comparison counts.
 
-**Status: Development version; compilation and gameplay are not yet verified.** Automatic wearing is OFF by default. When enabled, the mod only orders non-working pawns to use vanilla wear jobs. It avoids forced and locked apparel. Compatibility with other automatic outfit-control mods is unverified.
+Smart Apparel Upgrade helps RimWorld 1.7 players find replacement clothing when colonists do not wear higher-quality apparel. It compares items of the same type and material, considering quality, durability, outfit policy, and reachability. It also counts excluded comparison reasons.
 
-### Build
-.NET 10 SDK and matching RimWorld 1.7 DLLs are required. Run `dotnet build Source/SmartApparelUpgrade.csproj -c Release /p:RimWorldManaged=/path/to/RimWorld`. No game DLLs are distributed.
+Optionally enable automatic upgrades to order idle colonists to use the game's normal wear jobs. Automatic upgrades are **OFF by default**. Forced and locked apparel are left untouched.
+
+**This is a development build; gameplay and compatibility with other outfit managers are not verified.** Do not enable automatic wearing in important save files.
+
+### Usage
+
+Install a RimWorld 1.7 build in your Mods folder, enable it and open Settings → Mod Settings → Smart Apparel Upgrade. Start with diagnostics only.
