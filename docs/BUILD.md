@@ -1,11 +1,13 @@
-# Build and test / ビルド・検証
+# Build / ビルド
+CI uses the public reference-only package Krafs.Rimworld.Ref 1.7.4985-unstable, not private copyrighted game files.
 
-Use .NET 10 SDK and a matching RimWorld 1.7 game root containing Assembly-CSharp.dll, Waylith.dll and UnityStubs.dll.
+CI は公開参照アセンブリ Krafs.Rimworld.Ref 1.7.4985-unstable を使い、ゲーム本体のDLLは含めません。
 
-`dotnet build Source/SmartApparelUpgrade.csproj -c Release /p:RimWorldManaged=/path/to/RimWorld`
+`dotnet build Source/SmartApparelUpgrade.csproj -c Release`
 
-Expected output after a successful build: `1.7/Assemblies/SmartApparelUpgrade.dll`.
+To target an exact local game build, pass `-p:RimWorldManaged=/path/to/RimWorld`. The referenced directory must contain Assembly-CSharp.dll, Waylith.dll, UnityStubs.dll.
 
-Required manual tests: same-type/same-material higher quality; forbidden candidates; policy filter; 70% condition cutoff; forced and locked worn apparel; access/reservation; multiple pawns sharing a candidate; busy vs idle jobs; saving and loading; coexistence with Colony Wardrobe (diagnostic mode before auto mode); changing policies at runtime.
+特定のゲーム本体でビルドする場合、対応するDLLを含むディレクトリを指定してください。
 
-Automatic wearing is an experimental opt-in. Do not publish a stable gameplay-ready release without tests.
+Only publish a game-ready release after manual RimWorld 1.7 runtime and save/reload tests.
+ゲーム内の動作とセーブ・ロードを実際に検証するまでは正式リリースしないでください。
