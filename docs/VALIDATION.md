@@ -76,3 +76,25 @@ This section supersedes the earlier same-type-only and blanket partial-scan rest
 日本語: 異種・異素材・複数脱衣を、脱衣対象すべての合計性能と被覆・要件を比較する安全判定へ追加しました。特殊装備や装備補正の変更は診断専用です。同種・同素材優先を自動指示へ反映し、個別確認済み候補が他の未確認候補で一律停止しないよう修正しました。品質不明・追加スロットも理由を表示します。29項目、限定的な実物Scribe、日英キー、配布構成の確認は合格です。
 
 Remaining release acceptance: actual completed Wear jobs (including these new replacement shapes), populated whole-map save/load and installation/removal, real manager/race/DLC/270+ MOD combinations, visible UI review and measured large-colony scan/TPS. These require a representative running game/fixture that is not available in this local stock-.NET environment. Do not equate compilation, isolated Scribe or the previous empty-map tick smoke with these checks. Issue #1 remains open; development artifacts only, no v1.0.
+
+## v1.0.0 release checks (2026-11-01)
+
+Fixes made during release review (code review and IL inspection only; no new gameplay run):
+
+- **Automatic swaps marked new apparel as forced.**
+  - Cause: `Pawn_JobTracker.TryTakeOrderedJob` stores `Job.playerForced = true` (IL offsets 37–39). `JobDriver_Wear`'s wear toil calls `Pawn_ApparelTracker.Wear(apparel, true, false)` and then, when `job.playerForced`, `OutfitForcedHandler.SetForced(apparel, true)` (offsets 86–121).
+  - Effect: every automatic upgrade silently changed the player's outfit state. It also blocked later vanilla optimization and this mod's own later upgrades (forced items are diagnosed `SAU_ReasonForced`).
+  - Fix: orders are now started with `Pawn_JobTracker.StartJob(job, InterruptForced, …, JobTag.Misc)` with `playerForced = false`. Success is confirmed by `pawn.CurJob == job`. `StartJob` only reads `playerForced` (offset 783) and never writes it.
+- **Idle colonists were rarely eligible.** Idle colonists normally run `Wait_Wander`/`GotoWander`, which previously made them ineligible, so automation effectively never ran. These wander filler jobs now count as idle. Every other guard is unchanged: manual/queued jobs, sleep, drafting, injury, mental state, downed, threat and cooldowns.
+
+Checks performed:
+
+- 29 model assertions pass.
+- `validate_package.py` passes (44 keys).
+- Release build has 0 warnings and 0 errors against the exact private 1.7.4985 rev1269 DLLs.
+- Release build with `Krafs.Rimworld.Ref 1.7.4985-unstable` also has 0 warnings and 0 errors.
+- Static reference check of the public-reference DLL: 130 members and 82 types matched, 0 mismatches. The 208 unverified references are BCL only.
+
+Confirmed by code review: every displaced garment is aggregated, coverage/layers must match exactly, special/unknown gear and changed equipped offsets are diagnostic-only, there is a full live recheck before the job, unchecked candidates never order, extra slots are never filled, and the legacy single-ID history still loads.
+
+Still unverified, and not claimed: actual completed Wear jobs in play, absence of gameplay loops, populated policy/race/DLC scenarios, full-map save/load and removal, co-loaded outfit managers, large-colony scan time/TPS and compatibility with large mod lists. The earlier A-level and 12,000-tick evidence was produced on earlier DLL bytes.

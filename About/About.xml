@@ -4,5 +4,8 @@
   <author>pengin0503</author>
   <packageId>pengin0503.smartapparelupgrade</packageId>
   <supportedVersions><li>1.7</li></supportedVersions>
-  <description>Searches higher-quality same-type clothing and optionally orders non-working pawns to upgrade. Experimental development source.</description>
+  <modVersion>1.0.0</modVersion>
+  <description>Lists better apparel for each colonist and explains why each candidate is or is not worn: quality, condition, armor, insulation, coverage, layers, apparel policy, body/race/DLC requirements, forced or locked apparel, reservations, forbidden items and reachability. Optional automatic replacement (OFF by default) uses vanilla Wear jobs only for verified ordinary apparel, only while the colonist is idle, and switches to diagnostics-only when an outfit manager or related Harmony patch is detected.
+
+入植者ごとに改善候補の衣服と、着替える・着替えない理由を表示します。自動交換（初期OFF）は、確認済みの通常装備に限り、入植者が暇なときにバニラのWear Jobで行います。服装管理MODや関連パッチを検出すると診断専用になります。</description>
 </ModMetaData>
