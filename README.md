@@ -4,28 +4,132 @@
 
 ## 日本語
 
-RimWorld 1.7で、入植者・衣服ごとに交換候補と着替えない理由を表示します。品質・耐久度・バニラの服装スコアに加え、鋭利・打撃・熱の防御、寒冷・高温の断熱、服装ポリシー、着用可能な身体・種族・DLC要件、部位・レイヤー、強制着用・ロック、予約・禁止・到達性を確認します。対象位置へ移動できます。
+Smart Apparel Upgrade は RimWorld 1.7 用のMODです。入植者ごとに、より良い衣服の候補と、それを着る・着ない理由を表示します。安全条件をすべて満たす場合に限り、自動で着替えさせることもできます（**初期OFF**）。Harmony は不要です。
 
-最低品質差、耐久度、スコア改善率を設定できます。同種・同素材の優先設定は表示と自動指示の両方に反映します。自動交換は**初期OFF**です。異種・異素材・複数脱衣も、脱衣する全衣服の合計防御・断熱・スコア、最高品質・耐久度を下回らず、被覆部位・レイヤーを維持する通常装備なら、バニラWear Jobの対象になります。異種・異素材・複数脱衣では重量・最大耐久値・消耗速度も確認します。装備補正値の変化・特殊コンポーネント・独自クラスは診断専用です。品質不明や交換対象のない追加スロットも理由を表示します。
+### 診断
 
-手動・予約済み・有用な作業、睡眠、徴兵、負傷、精神状態、戦闘の脅威がある場合は保留します。再指示・逆交換の待機時間を保存し、ロード・設定変更後にも猶予期間を設けます。服装管理MODの名前や関連メソッドへのHarmonyパッチ、パッチ検査失敗を検出すると診断専用にします。名称による検出は保守的で、互換性を保証するものではありません。
+入植者・衣服ごとに次の項目を比較します。
 
-**開発版です。実際の着替え完了、マップ保存・読み込み、途中導入・削除、他MODとの実動作、UI配置、実スキャン時間・TPSへの影響は未検証です。** 指示成功を着替え完了と表示しません。走査上限に達した場合は不完全と表示します。個別に確認済みの候補だけは直前に再確認して指示できます。未確認候補を自動指示しません。
+- 品質、耐久度、バニラの服装スコア
+- 鋭利・打撃・熱の防御、寒冷・高温の断熱
+- 種類、素材、被覆部位、レイヤー
 
-### 利用方法
+候補ごとに次の条件を確認し、理由を表示します。
 
-1.7用開発版をModsフォルダに配置し、「設定」→「MOD設定」→「Smart Apparel Upgrade」で再走査します。最初は診断専用で確認し、重要なセーブで自動交換を有効にしないでください。
+- 服装ポリシー
+- 着用できる身体・種族・DLC（イデオロギーの服装要件を含む）
+- 強制着用・ロック、死体が着ていた服
+- 予約、禁止、到達性
+
+そのほか、品質が分からない衣服や、交換対象のない追加スロットも理由付きで表示します。追加スロットは診断のみで、自動では着せません。候補の位置へ移動できます。
+
+### 自動交換（任意・初期OFF）
+
+設定で有効にした場合だけ、次の条件をすべて満たす候補をバニラの Wear Job で着替えさせます。
+
+- 新しい服が、脱ぐことになる**すべての**服を合計した防御・断熱・服装スコアを下回らない。品質と耐久度は、脱ぐ服の最高値を下回らない。
+- 被覆部位とレイヤーが変わらない。異種・異素材・複数脱衣では、重量・最大耐久値・消耗速度も悪化しない。
+- 品質差、耐久度、性能改善幅が設定の下限を満たし、バニラの評価でも改善になる。
+- 特殊なコンポーネント・独自クラス・装備補正値の変化がない、通常の装備に限る。効果が分からない装備は対象外です。
+- 入植者が暇（待機・散歩中）で起きており、次のどれにも当てはまらない。
+  - 手動指示・予約済みのJob
+  - 徴兵、負傷、精神状態、ダウン
+  - 戦闘の脅威
+- 同じ入植者への再指示は1日空ける。脱いだ服を着直す指示は3日空ける（履歴はセーブに保存）。
+
+その他の動作:
+
+- 同種・同素材の候補を優先します（設定で変更できます）。
+- Jobの発行直前に、装備状態と全条件をもう一度確認します。
+- 自動で着た服は「強制着用」になりません。以後もバニラの服の最適化の対象です。
+- ロード直後と設定変更後は、一定の猶予期間を置いてから自動交換を始めます。
+- 次の場合は自動交換を止め、診断専用になります。
+  - Outfit Manager（`LordKuper.OutfitManager`）や、名前に wardrobe / outfit manager を含む服装管理MODを検出したとき
+  - 服装関連メソッドへのHarmonyパッチを検出したとき
+  - パッチの検査に失敗したとき
+
+### 使い方
+
+1. リリースのZIPを展開した `SmartApparelUpgrade` フォルダを RimWorld の `Mods` フォルダに置き、有効化します。
+2. 「設定」→「MOD設定」→「Smart Apparel Upgrade」で「候補を検索」を押し、診断結果を確認します。
+3. 必要なら最低品質差・耐久度・改善幅を調整し、自動交換を有効にします。
+
+途中導入・途中削除ができます。交換履歴はマップ単位でセーブに保存され、以前の開発版の履歴形式も読み込めます。
+
+### 制限事項と未検証範囲
+
+- **通常のゲームプレイでの動作確認（実際の着替え完了を含む）は行っていません。** 公開前に確認したのは次の範囲です。
+  - 実物のゲームDLLを参照したビルド
+  - バニラの Wear Job と強制着用処理のIL確認
+  - 静的な参照照合
+  - モデル単体の確認
+  - 限定的なセーブ形式の確認
+- 服装管理MODの検出は名前と関連パッチに基づく保守的なもので、互換性を保証しません。Colony Wardrobe の PackageId は確認できていません。
+- 1回の検査には上限（在庫10,000着、比較2,500件）があり、超えた場合は「不完全」と表示します。確認できなかった候補で自動交換することはありません。
+- 大規模コロニーでの検査時間・TPSへの影響と、多数のMODとの互換性は計測・検証していません。
 
 ## English
 
-Displays replacement candidates and individual reasons why RimWorld 1.7 colonists do not wear them. It checks quality, condition, vanilla apparel score, sharp/blunt/heat armor, cold/heat insulation, apparel policy, body/race/DLC wearability requirements, body groups/layers, forced/locked apparel, reservation, forbidden state and reachability. Locate candidate items from the list.
+Smart Apparel Upgrade is a RimWorld 1.7 mod. It lists better apparel for each colonist and explains why each candidate is or is not worn. Optionally, it can have colonists change clothes automatically when every safety condition holds (**OFF by default**). Harmony is not required.
 
-Configure minimum quality difference, condition and score improvement. Same-type/material preference affects diagnostics and automatic order priority. Automation is **OFF by default**. Different types/materials and multiple removals may use vanilla Wear jobs only for ordinary gear preserving combined coverage/layers and meeting summed armor, insulation and raw-score baselines plus maximum removed quality/condition. Cross-type/material and multiple replacements also check mass, maximum hit points and wear rate. Changed equipped offsets, special components and custom apparel classes remain diagnostic-only. Unknown quality and additional slots with no replacement are diagnosed explicitly.
+### Diagnostics
 
-Manual, queued or useful jobs, sleep, drafting, injury, mental states and combat threats defer automation. Persistent cooldown/reversal guards and a load/settings grace interval limit retries. Manager display names, Harmony patches to relevant apparel methods or patch-inspection failure force diagnostics-only mode. Name detection is conservative and does not establish runtime compatibility.
+For each colonist and garment it compares:
 
-**Development build. Actual completed swaps, full-map save/load, installation/removal, other MOD gameplay, UI layout and actual scan/TPS overhead are unverified.** Issuing a job is never reported as completed wearing. Budget-limited scans are labeled partial. Individually verified candidates may still issue orders after live rechecking; unchecked candidates never do.
+- quality, condition and the vanilla apparel score
+- sharp/blunt/heat armor and cold/heat insulation
+- type, material, covered body parts and layers
+
+For each candidate it checks the following and shows the reason:
+
+- apparel policy
+- body, race and DLC wearability (including ideology apparel requirements)
+- forced or locked apparel, and apparel worn by a corpse
+- reservations, forbidden state and reachability
+
+Apparel of unknown quality and additional free slots with no garment to replace are also shown with a reason. Free slots are diagnostic only and are never filled automatically. You can jump to a candidate's location.
+
+### Automatic replacement (optional, OFF by default)
+
+Only when enabled, a vanilla Wear job is issued for candidates that meet every condition below:
+
+- The new garment is not worse than the **combined** armor, insulation and apparel score of every garment it would remove. Its quality and condition are not below the highest of the removed garments.
+- Coverage and layers are unchanged. For cross-type, cross-material or multiple removals, mass, maximum hit points and wear rate must not get worse.
+- Quality, condition and performance gains meet your thresholds, and vanilla scoring also sees an improvement.
+- Only ordinary apparel is eligible: no special components, custom classes or changed equipped stat offsets. Gear with unknown effects is excluded.
+- The colonist is idle (waiting or wandering) and awake, and none of the following applies:
+  - a manual or queued job
+  - drafted, injured, in a mental state or downed
+  - a combat threat
+- At least one day passes between orders for the same colonist, and three days before a removed garment can be re-targeted. The history is stored in the save.
+
+Other behavior:
+
+- Same-type/material candidates are preferred (configurable).
+- Apparel state and every condition are rechecked right before the job is issued.
+- Automatically worn apparel is **not** marked as forced, so vanilla outfit optimization still applies to it later.
+- Automation waits a grace interval after loading and after settings changes.
+- Automation stops and the mod becomes diagnostics-only when:
+  - Outfit Manager (`LordKuper.OutfitManager`) or an outfit-manager mod whose name contains wardrobe / outfit manager is detected
+  - a Harmony patch on relevant apparel methods is detected
+  - patch inspection fails
 
 ### Usage
 
-Install a 1.7 development build in Mods, then open Settings → Mod Settings → Smart Apparel Upgrade and rescan. Start with diagnostics only; do not enable automation on important saves.
+1. Extract the release ZIP, place the `SmartApparelUpgrade` folder in RimWorld's `Mods` folder and enable it.
+2. Open Settings → Mod Settings → Smart Apparel Upgrade, press "Scan for upgrades" and review the diagnostics.
+3. Optionally adjust the quality, condition and gain thresholds, then enable automatic replacement.
+
+The mod can be added to or removed from an existing save. Replacement history is stored per map, and history saved by earlier development builds still loads.
+
+### Limitations and unverified scope
+
+- **Not yet tested in normal gameplay, including actual completed swaps.** Before release, only the following were checked:
+  - a build against the real game DLLs
+  - an IL review of vanilla Wear and forced-apparel handling
+  - static reference matching
+  - model unit checks
+  - limited save-format checks
+- Outfit-manager detection is a conservative name and patch check, not a compatibility guarantee. The Colony Wardrobe PackageId has not been confirmed.
+- Each scan has caps (10,000 stored garments, 2,500 comparisons). When they are reached the result is labeled partial. Candidates that were not checked are never used for automatic replacement.
+- Scan time and TPS impact in large colonies, and compatibility with large mod lists, have not been measured or verified.

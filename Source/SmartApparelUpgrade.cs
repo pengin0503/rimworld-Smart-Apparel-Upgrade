@@ -240,7 +240,9 @@ namespace Pengin.SmartApparelUpgrade
         }
         IdleState Activity(Pawn p)
         {
-            return new IdleState {Idle=p.CurJob==null||p.CurJobDef==JobDefOf.Wait||p.CurJobDef==JobDefOf.Wait_MaintainPosture,
+            // Idle colonists usually run the wander filler jobs; those carry no work to protect.
+            return new IdleState {Idle=p.CurJob==null||p.CurJobDef==JobDefOf.Wait||p.CurJobDef==JobDefOf.Wait_MaintainPosture||
+                p.CurJobDef==JobDefOf.Wait_Wander||p.CurJobDef==JobDefOf.GotoWander,
                 Awake=p.Awake(),PlayerForced=p.CurJob!=null&&(p.CurJob.playerForced||p.CurJob.playerInterruptedForced),
                 Queued=p.jobs==null||p.jobs.jobQueue.Count>0,Injured=p.health==null||p.health.HasHediffsNeedingTend(false)||p.health.hediffSet.hediffs.Any(h=>h is Hediff_Injury),
                 Threat=threat,Drafted=p.Drafted,Mental=p.InMentalState,Downed=p.Downed,Dead=p.Dead};
@@ -277,7 +279,13 @@ namespace Pengin.SmartApparelUpgrade
                 UpgradeChoice fresh=Evaluate(pawn,choice.Worn,choice.Better,scores,ref paths);
                 if(!fresh.SafeAuto)continue;
                 // Only vanilla Wear performs removal/equip. No direct tracker mutation.
-                if(pawn.jobs.TryTakeOrderedJob(JobMaker.MakeJob(JobDefOf.Wear,choice.Better),JobTag.Misc))
+                // Not TryTakeOrderedJob: it sets Job.playerForced, and JobDriver_Wear then marks the
+                // new apparel as forced (OutfitForcedHandler.SetForced), silently changing the
+                // player's outfit state and blocking later vanilla optimization.
+                Job job=JobMaker.MakeJob(JobDefOf.Wear,choice.Better);
+                job.playerForced=false;
+                pawn.jobs.StartJob(job,JobCondition.InterruptForced,null,false,true,null,JobTag.Misc);
+                if(pawn.CurJob==job)
                 {
                     issued.Add(pawn);claimed.Add(choice.Better);
                     stamps.RemoveAll(s=>s.PawnId==pawn.ThingID);
